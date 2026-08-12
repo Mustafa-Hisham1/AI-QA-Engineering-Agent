@@ -1,0 +1,18 @@
+{
+  "name": "ai-qa-engineering-agent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "AI QA Engineering Agent — Azure DevOps integration (read-only)",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "ado:check": "node src/cli/check-connection.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

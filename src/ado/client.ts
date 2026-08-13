@@ -10,7 +10,19 @@
 
 import type { AdoConfig } from './config.ts';
 import { AdoError, registerSecret } from './errors.ts';
-import { buildAuthHeader, getJson, type RequestOptions } from './http.ts';
+import { buildAuthHeader, getBytes, getJson, type RequestOptions } from './http.ts';
+import {
+  buildAttachmentDownloadUrl,
+  computeContentFingerprint,
+  decodeTextAttachment,
+  normaliseAttachments,
+  normaliseUserStory,
+  sha256,
+  type AttachmentInfo,
+  type MarkdownDocument,
+  type RawWorkItem,
+  type RequirementContext,
+} from './user-story.ts';
 
 // ---------------------------------------------------------------------------
 // Raw Azure DevOps response shapes (internal — never leave this module)
@@ -132,5 +144,74 @@ export class AdoReadClient {
         name: type.name,
         referenceName: type.referenceName ?? type.name,
       }));
+  }
+
+  /**
+   * Reads one User Story and returns its Requirement Context.
+   *
+   * This is the entry point every later pipeline stage uses. It verifies the
+   * work item type, normalises the fields, lists the attachments, and downloads
+   * the Markdown attachments — which is where the detailed requirement usually
+   * lives in this project.
+   *
+   * Non-Markdown attachments are listed but not downloaded: they may be large
+   * binaries, and nothing downstream can read them yet.
+   *
+   * @throws {AdoError} NOT_FOUND when the ID does not exist or is not visible,
+   *                    UNSUPPORTED_WORK_ITEM_TYPE when it is not a User Story.
+   */
+  async readUserStory(id: number): Promise<RequirementContext> {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new AdoError('CONFIG_INVALID', `"${id}" is not a valid work item ID.`, {
+        hint: 'Pass a positive whole number, e.g. 53717.',
+      });
+    }
+
+    const raw = await this.#getWorkItem(id);
+    const story = normaliseUserStory(raw, id);
+    const attachments = normaliseAttachments(raw);
+
+    const markdownDocuments: MarkdownDocument[] = [];
+    for (const attachment of attachments.filter((candidate) => candidate.isMarkdown)) {
+      markdownDocuments.push(await this.#downloadMarkdown(attachment));
+    }
+
+    return {
+      organization: this.#config.orgName,
+      story,
+      attachments,
+      markdownDocuments,
+      contentFingerprint: computeContentFingerprint(story, markdownDocuments),
+      retrievedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * Fetches a work item with relations expanded.
+   *
+   * `$expand=relations` is what makes attachments visible — without it the
+   * response carries fields only, and the story looks like it has no
+   * attachments at all.
+   */
+  async #getWorkItem(id: number): Promise<RawWorkItem> {
+    const project = encodeURIComponent(this.#config.project);
+    const url = `${this.#config.orgUrl}/${project}/_apis/wit/workitems/${id}?$expand=relations&api-version=7.1`;
+
+    return getJson<RawWorkItem>(url, this.#authHeader, this.#requestOptions);
+  }
+
+  /** Downloads one Markdown attachment and decodes it to text. */
+  async #downloadMarkdown(attachment: AttachmentInfo): Promise<MarkdownDocument> {
+    const url = buildAttachmentDownloadUrl(attachment);
+    const { bytes } = await getBytes(url, this.#authHeader, this.#requestOptions);
+
+    return {
+      attachmentId: attachment.id,
+      fileName: attachment.fileName,
+      comment: attachment.comment,
+      content: decodeTextAttachment(bytes),
+      byteLength: bytes.byteLength,
+      sha256: sha256(bytes),
+    };
   }
 }

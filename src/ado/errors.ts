@@ -11,6 +11,8 @@ export type AdoErrorCode =
   | 'AUTH_FAILED'
   | 'PERMISSION_DENIED'
   | 'NOT_FOUND'
+  /** The work item exists but is not a type this project is allowed to read. */
+  | 'UNSUPPORTED_WORK_ITEM_TYPE'
   | 'RATE_LIMITED'
   | 'SERVICE_UNAVAILABLE'
   | 'NETWORK_ERROR'

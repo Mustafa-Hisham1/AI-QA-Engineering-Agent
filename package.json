@@ -9,6 +9,7 @@
   },
   "scripts": {
     "ado:check": "node src/cli/check-connection.ts",
+    "story:read": "node src/cli/read-story.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

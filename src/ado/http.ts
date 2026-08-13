@@ -3,7 +3,8 @@
  *
  * READ-ONLY BOUNDARY
  * ------------------
- * This module deliberately exposes GET only. There is no post/patch/put/delete
+ * This module deliberately exposes GET only — `getJson()` for API responses and
+ * `getBytes()` for attachment downloads. There is no post/patch/put/delete
  * helper, so no code built on it can modify Azure DevOps — the restriction is
  * structural rather than a convention.
  *
@@ -130,15 +131,19 @@ export function buildAuthHeader(pat: string): string {
 }
 
 /**
- * Performs an authenticated GET and parses the JSON body.
+ * Performs an authenticated GET with retries, returning the successful response.
  *
- * @throws {AdoError} always — never a raw fetch/parse error.
+ * Reads are idempotent, which is what makes blind retrying safe here — and is
+ * exactly why writes must never share this path.
+ *
+ * @throws {AdoError} always — never a raw fetch error.
  */
-export async function getJson<T>(
+async function get(
   url: string,
   authHeader: string,
   options: RequestOptions,
-): Promise<T> {
+  accept: string,
+): Promise<Response> {
   let lastError: AdoError | undefined;
 
   for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
@@ -149,9 +154,9 @@ export async function getJson<T>(
         method: 'GET',
         headers: {
           Authorization: authHeader,
-          // Requesting JSON explicitly is what makes the HTML sign-in page
-          // detectable below rather than silently mis-parsed.
-          Accept: 'application/json',
+          // Stating the expected type explicitly is what makes an HTML sign-in
+          // page detectable by the callers below rather than mis-parsed.
+          Accept: accept,
           'User-Agent': 'ai-qa-engineering-agent/0.0.1',
         },
         signal: AbortSignal.timeout(options.timeoutMs),
@@ -176,34 +181,85 @@ export async function getJson<T>(
       throw lastError;
     }
 
-    // Azure DevOps quirk: an invalid or expired PAT frequently yields
-    // "203 Non-Authoritative Information" with an HTML sign-in page instead of
-    // a clean 401. Without this guard it parses as success and fails
-    // confusingly further downstream.
-    const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('application/json')) {
-      throw new AdoError(
-        'AUTH_FAILED',
-        `Azure DevOps returned "${contentType || 'unknown content type'}" instead of JSON (HTTP ${response.status}).`,
-        {
-          status: response.status,
-          hint:
-            'This normally means the PAT is invalid, expired, or revoked — Azure DevOps served a sign-in page. ' +
-            'It can also mean ADO_ORG_URL points at the wrong organisation.',
-        },
-      );
-    }
-
-    try {
-      return (await response.json()) as T;
-    } catch (error) {
-      throw new AdoError('UNEXPECTED_RESPONSE', `Could not parse the Azure DevOps response as JSON: ${url}`, {
-        status: response.status,
-        cause: error,
-      });
-    }
+    return response;
   }
 
   /* c8 ignore next — unreachable: the loop always returns or throws. */
   throw lastError ?? new AdoError('UNEXPECTED_RESPONSE', `Request failed: ${url}`);
+}
+
+/**
+ * Azure DevOps quirk: an invalid or expired PAT frequently yields
+ * "203 Non-Authoritative Information" with an HTML sign-in page instead of a
+ * clean 401. Without this guard the page parses as success and fails
+ * confusingly further downstream — or worse, gets stored as requirement text.
+ */
+function rejectSignInPage(response: Response, contentType: string, expected: string): void {
+  throw new AdoError(
+    'AUTH_FAILED',
+    `Azure DevOps returned "${contentType || 'unknown content type'}" instead of ${expected} (HTTP ${response.status}).`,
+    {
+      status: response.status,
+      hint:
+        'This normally means the PAT is invalid, expired, or revoked — Azure DevOps served a sign-in page. ' +
+        'It can also mean ADO_ORG_URL points at the wrong organisation.',
+    },
+  );
+}
+
+/**
+ * Performs an authenticated GET and parses the JSON body.
+ *
+ * @throws {AdoError} always — never a raw fetch/parse error.
+ */
+export async function getJson<T>(
+  url: string,
+  authHeader: string,
+  options: RequestOptions,
+): Promise<T> {
+  const response = await get(url, authHeader, options, 'application/json');
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    rejectSignInPage(response, contentType, 'JSON');
+  }
+
+  try {
+    return (await response.json()) as T;
+  } catch (error) {
+    throw new AdoError('UNEXPECTED_RESPONSE', `Could not parse the Azure DevOps response as JSON: ${url}`, {
+      status: response.status,
+      cause: error,
+    });
+  }
+}
+
+/**
+ * Downloads a binary resource (an attachment) and returns its raw bytes.
+ *
+ * Decoding is left to the caller: only the caller knows whether the bytes are
+ * text, and guessing an encoding here would corrupt requirement content
+ * silently. HTML is rejected because an attachment is never an HTML page — it
+ * means the credential was refused.
+ */
+export async function getBytes(
+  url: string,
+  authHeader: string,
+  options: RequestOptions,
+): Promise<{ readonly bytes: Uint8Array; readonly contentType: string }> {
+  const response = await get(url, authHeader, options, 'application/octet-stream, */*');
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (contentType.includes('text/html')) {
+    rejectSignInPage(response, contentType, 'file content');
+  }
+
+  try {
+    return { bytes: new Uint8Array(await response.arrayBuffer()), contentType };
+  } catch (error) {
+    throw new AdoError('UNEXPECTED_RESPONSE', `Could not read the Azure DevOps response body: ${url}`, {
+      status: response.status,
+      cause: error,
+    });
+  }
 }

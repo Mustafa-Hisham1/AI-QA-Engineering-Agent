@@ -1,27 +1,34 @@
 ---
-description: Read an Azure DevOps User Story with its .md attachments and persist a Requirement Analysis
-argument-hint: <USER_STORY_ID>
+name: analyze-story
+description: Read an Azure DevOps User Story with its .md attachments and persist a Requirement Analysis under docs/requirements/US-<ID>/. Use when asked to analyze, re-analyze, or refresh the requirements of a User Story by ID. Takes the User Story ID as its argument.
 allowed-tools: Bash(npm run story:read:*), Bash(git diff:*), Bash(git status:*), Read, Write, Edit, Glob, Grep
 ---
 
-# Analyze User Story $1
+# Analyze User Story
 
-Produce or update the persistent **Requirement Analysis** for User Story **$1**.
+Produce or update the persistent **Requirement Analysis** for a User Story.
 
-This command **reads** Azure DevOps and **writes local files only**. It never modifies Azure
+This skill **reads** Azure DevOps and **writes local files only**. It never modifies Azure
 DevOps, never creates Bugs, never generates Test Cases, and never commits.
+
+## Step 0 — Resolve the User Story ID
+
+The ID is `$ARGUMENTS`. Below, `<ID>` means that value.
+
+If no ID was supplied, ask for one and stop. Do not guess an ID and do not analyse the most
+recently touched story instead.
 
 ## Scope boundary
 
 **Do NOT generate Test Cases.** Requirement understanding only. Test case generation is a
-separate command and a separate human review.
+separate skill and a separate human review.
 
 ---
 
 ## Step 1 — Read the User Story
 
 ```bash
-npm run story:read -- $1 --summary
+npm run story:read -- <ID> --summary
 ```
 
 This uses the permanent read-only integration (`src/ado/client.ts` → `readUserStory`). It
@@ -32,7 +39,7 @@ other way.**
 Handle the outcome:
 
 - **`UNSUPPORTED_WORK_ITEM_TYPE`** → stop. Report the actual type. V1 reads `User Story`
-  only; widening the reader is a project-level decision, not a step in this command.
+  only; widening the reader is a project-level decision, not a step in this skill.
 - **`NOT_FOUND`** → stop. The ID does not exist or the token cannot see it. Do not retry with
   a different ID and do not guess.
 - **`AUTH_FAILED` / `CONFIG_MISSING`** → stop and report the hint from the error verbatim.
@@ -48,9 +55,9 @@ Record from the output: title, work item type, state, project, area path, iterat
 Artifact paths for this story:
 
 ```
-docs/requirements/US-$1/requirement-analysis.md    the analysis (agent-generated)
-docs/requirements/US-$1/decisions.md               confirmed human decisions (human authority)
-docs/requirements/US-$1/source/                    verbatim .md attachment snapshot
+docs/requirements/US-<ID>/requirement-analysis.md    the analysis (agent-generated)
+docs/requirements/US-<ID>/decisions.md               confirmed human decisions (human authority)
+docs/requirements/US-<ID>/source/                    verbatim .md attachment snapshot
 ```
 
 If `requirement-analysis.md` already exists, read the fingerprint in its provenance table and
@@ -72,7 +79,7 @@ so a reassignment or a tag edit does not trigger re-analysis.
 ## Step 3 — Read the full content and update the snapshot
 
 ```bash
-npm run story:read -- $1 --save-source docs/requirements/US-$1/source
+npm run story:read -- <ID> --save-source docs/requirements/US-<ID>/source
 ```
 
 Read the complete output: description, acceptance criteria, additional fields, and the entire
@@ -82,14 +89,14 @@ truth is captured in one read.
 If a snapshot already existed, see exactly what changed:
 
 ```bash
-git diff -- docs/requirements/US-$1/source
+git diff -- docs/requirements/US-<ID>/source
 ```
 
 For an update, that diff — not the whole document — is what drives the impact analysis.
 
 ## Step 4 — Load confirmed decisions
 
-Read `docs/requirements/US-$1/decisions.md` if it exists. It holds decisions the human has
+Read `docs/requirements/US-<ID>/decisions.md` if it exists. It holds decisions the human has
 explicitly confirmed, and it is **human authority**: it outranks your own reading of the
 requirement and must survive every regeneration of the analysis.
 
@@ -100,7 +107,7 @@ requirement and must survive every regeneration of the analysis.
   `docs/product-decisions.md`, is **not** silently reconciled — surface the conflict as a
   blocking open question.
 - Never add a decision to that file yourself. Only a human statement in a session creates
-  one; if the human confirms decisions during this command, write them there and cite where
+  one; if the human confirms decisions during this skill, write them there and cite where
   they came from.
 
 ## Step 5 — Analyse as a Senior QA Engineer
@@ -143,7 +150,7 @@ Rules that keep the analysis trustworthy:
 
 ## Step 6 — Write or update the artifact
 
-Write `docs/requirements/US-$1/requirement-analysis.md`. Every statement carries exactly one tag:
+Write `docs/requirements/US-<ID>/requirement-analysis.md`. Every statement carries exactly one tag:
 
 | Tag | Meaning |
 |---|---|

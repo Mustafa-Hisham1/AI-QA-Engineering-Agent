@@ -10,8 +10,11 @@
 
 import type { AdoConfig } from './config.ts';
 import { AdoError, registerSecret } from './errors.ts';
+import { FIELD, HIERARCHY_CHILD_RELATION, TEST_CASE_FIELD } from './fields.ts';
+import { countSteps } from './test-case.ts';
 import { buildAuthHeader, getBytes, getJson, type RequestOptions } from './http.ts';
 import {
+  SUPPORTED_WORK_ITEM_TYPE,
   buildAttachmentDownloadUrl,
   computeContentFingerprint,
   decodeTextAttachment,
@@ -65,6 +68,26 @@ export interface ConnectionInfo {
 export interface WorkItemTypeInfo {
   readonly name: string;
   readonly referenceName: string;
+}
+
+/** Where a parent work item lives, and how a child links to it. */
+export interface ParentContext {
+  readonly id: number;
+  readonly workItemType: string;
+  readonly title: string;
+  readonly areaPath: string | null;
+  readonly iterationPath: string | null;
+  /** Absolute API URL used as the target of a hierarchy relation. */
+  readonly apiUrl: string;
+}
+
+/** A child work item as seen from its parent. */
+export interface ChildWorkItem {
+  readonly id: number;
+  readonly workItemType: string;
+  readonly title: string;
+  /** Steps actually stored on the item, or null when it carries no steps field. */
+  readonly stepCount: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +207,110 @@ export class AdoReadClient {
       contentFingerprint: computeContentFingerprint(story, markdownDocuments),
       retrievedAt: new Date().toISOString(),
     };
+  }
+
+  /**
+   * Reads the placement context of a parent work item: where it lives, and the
+   * URL a child needs in order to link to it.
+   *
+   * Used before publishing so children inherit the parent's area and iteration
+   * instead of landing in the project root, and so the parent's type is verified
+   * before anything is created under it.
+   *
+   * @throws {AdoError} NOT_FOUND when the ID does not exist or is not visible,
+   *                    UNSUPPORTED_WORK_ITEM_TYPE when it is not a User Story.
+   */
+  async readParentContext(id: number): Promise<ParentContext> {
+    if (!Number.isInteger(id) || id <= 0) {
+      throw new AdoError('CONFIG_INVALID', `"${id}" is not a valid work item ID.`, {
+        hint: 'Pass a positive whole number, e.g. 53717.',
+      });
+    }
+
+    const raw = await this.#getWorkItem(id);
+    const fields = raw.fields ?? {};
+
+    const workItemType = typeof fields[FIELD.workItemType] === 'string' ? (fields[FIELD.workItemType] as string) : '';
+
+    if (workItemType !== SUPPORTED_WORK_ITEM_TYPE) {
+      throw new AdoError(
+        'UNSUPPORTED_WORK_ITEM_TYPE',
+        `Work item ${id} is a "${workItemType || 'unknown type'}", not a ${SUPPORTED_WORK_ITEM_TYPE}.`,
+        {
+          hint: `V1 supports ${SUPPORTED_WORK_ITEM_TYPE} only. Widening this is a project-level decision.`,
+        },
+      );
+    }
+
+    // Prefer the URL Azure DevOps reports; only fall back to constructing one,
+    // because a hand-built URL that differs from the canonical form produces a
+    // relation Azure DevOps accepts but does not resolve.
+    const apiUrl = raw.url ?? `${this.#config.orgUrl}/_apis/wit/workItems/${id}`;
+
+    return {
+      id,
+      workItemType,
+      title: typeof fields[FIELD.title] === 'string' ? (fields[FIELD.title] as string) : '',
+      areaPath: typeof fields[FIELD.areaPath] === 'string' ? (fields[FIELD.areaPath] as string) : null,
+      iterationPath: typeof fields[FIELD.iterationPath] === 'string' ? (fields[FIELD.iterationPath] as string) : null,
+      apiUrl,
+    };
+  }
+
+  /**
+   * Lists the child work items of a parent.
+   *
+   * This is the duplicate guard and the post-publish verification in one: it
+   * reports what is ACTUALLY in Azure DevOps rather than what a local file claims,
+   * which is the only trustworthy basis for deciding whether an item still needs
+   * creating.
+   */
+  async getChildWorkItems(parentId: number): Promise<ChildWorkItem[]> {
+    const raw = await this.#getWorkItem(parentId);
+
+    const childIds = (raw.relations ?? [])
+      .filter((relation) => relation.rel === HIERARCHY_CHILD_RELATION)
+      .map((relation) => {
+        const match = /\/(\d+)$/.exec(relation.url ?? '');
+        return match ? Number(match[1]) : undefined;
+      })
+      .filter((id): id is number => id !== undefined);
+
+    if (childIds.length === 0) return [];
+
+    const children: ChildWorkItem[] = [];
+
+    // Azure DevOps caps a batch read at 200 ids per request.
+    for (let offset = 0; offset < childIds.length; offset += 200) {
+      const batch = childIds.slice(offset, offset + 200);
+      const project = encodeURIComponent(this.#config.project);
+      const fields = [FIELD.title, FIELD.workItemType, TEST_CASE_FIELD.steps]
+        .map(encodeURIComponent)
+        .join(',');
+      const url = `${this.#config.orgUrl}/${project}/_apis/wit/workitems?ids=${batch.join(',')}&fields=${fields}&api-version=7.1`;
+
+      const response = await getJson<{ readonly value?: readonly RawWorkItem[] }>(
+        url,
+        this.#authHeader,
+        this.#requestOptions,
+      );
+
+      for (const item of response.value ?? []) {
+        if (typeof item.id !== 'number') continue;
+        const itemFields = item.fields ?? {};
+        const stepsXml = itemFields[TEST_CASE_FIELD.steps];
+
+        children.push({
+          id: item.id,
+          title: typeof itemFields[FIELD.title] === 'string' ? (itemFields[FIELD.title] as string) : '',
+          workItemType:
+            typeof itemFields[FIELD.workItemType] === 'string' ? (itemFields[FIELD.workItemType] as string) : '',
+          stepCount: typeof stepsXml === 'string' ? countSteps(stepsXml) : null,
+        });
+      }
+    }
+
+    return children;
   }
 
   /**

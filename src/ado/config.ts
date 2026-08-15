@@ -223,3 +223,99 @@ export function describeConfig(config: AdoConfig): Record<string, string> {
     credential: 'ADO_PAT_READ (loaded, not displayed)',
   };
 }
+
+// ---------------------------------------------------------------------------
+// Write configuration
+//
+// Invariant 3 requires the write path to load its own write-scoped credential;
+// invariant 7 requires `process.env` to be read in this module and nowhere else.
+// Both hold here: env access stays in this file, but the write credential is a
+// SEPARATE type behind a SEPARATE loader. `AdoConfig` never carries the write
+// PAT, so no code on the read path can reach it — including by accident.
+//
+// Scope: creating and updating work items needs "Work Items (Read & write)".
+// The broader "manage" scope is NOT required and is not asked for — it adds
+// destroy/permissions capability this project has no use for.
+// ---------------------------------------------------------------------------
+
+/** Configuration for the write path. Structurally distinct from AdoConfig. */
+export interface AdoWriteConfig {
+  readonly orgUrl: string;
+  readonly orgName: string;
+  readonly project: string;
+  /** WRITE-scoped personal access token. Never logged, never serialised. */
+  readonly writePat: string;
+  readonly timeoutMs: number;
+}
+
+/**
+ * Loads configuration for Azure DevOps writes.
+ *
+ * Requires `ADO_PAT_WRITE` in addition to the shared org/project settings. The
+ * read token is deliberately *not* accepted as a fallback: silently writing with
+ * whatever credential happens to be present is how a read-only token ends up
+ * needing write scope, which then makes the read path capable of writing.
+ *
+ * No `maxAttempts`: writes are never retried (see ./http-write.ts).
+ *
+ * @throws {AdoError} CONFIG_MISSING when ADO_PAT_WRITE is absent or empty.
+ */
+export function loadWriteConfig(): AdoWriteConfig {
+  const envFile = loadDotEnv();
+
+  if (envFile.kind === 'unreadable') {
+    throw new AdoError('CONFIG_INVALID', `Could not read ${envFile.path}`, {
+      details: [envFile.reason],
+      hint: 'Check the file is valid UTF-8 in NAME=value format, and that this account can read it.',
+    });
+  }
+
+  const required = ['ADO_ORG_URL', 'ADO_PROJECT', 'ADO_PAT_WRITE'] as const;
+  const states = required.map((name) => ({ name, state: classifyVar(name) }));
+  const problems = states.filter((entry) => entry.state !== 'ok');
+
+  if (problems.length > 0) {
+    const hasEmpty = problems.some((entry) => entry.state === 'empty');
+    const hasUnset = problems.some((entry) => entry.state === 'unset');
+
+    throw new AdoError('CONFIG_MISSING', 'Azure DevOps WRITE configuration is not usable.', {
+      details: [
+        describeEnvFile(envFile),
+        '',
+        ...problems.map(
+          (entry) =>
+            `${entry.name.padEnd(14)} ${entry.state === 'empty' ? 'present but empty (no value after "=")' : 'not set'}`,
+        ),
+        '',
+        'ADO_PAT_WRITE is a SEPARATE token from ADO_PAT_READ and needs "Work Items (Read & write)".',
+      ],
+      hint: problems.some((entry) => entry.name === 'ADO_PAT_WRITE')
+        ? 'Create a PAT with "Work Items (Read & write)" at <ADO_ORG_URL>/_usersSettings/tokens and add ADO_PAT_WRITE=<token> to .env. Do not reuse ADO_PAT_READ — the read path must stay incapable of writing.'
+        : buildConfigHint(envFile, hasEmpty, hasUnset),
+    });
+  }
+
+  const { orgUrl, orgName } = parseOrgUrl(readVar('ADO_ORG_URL')!);
+  const writePat = readVar('ADO_PAT_WRITE')!;
+
+  // Register before any request is made, so a leak is impossible from here on.
+  registerSecret(writePat);
+
+  return {
+    orgUrl,
+    orgName,
+    project: readVar('ADO_PROJECT')!,
+    writePat,
+    timeoutMs: readNumericVar('ADO_TIMEOUT_MS', DEFAULT_TIMEOUT_MS),
+  };
+}
+
+/** Write config safe to print. Deliberately omits the PAT. */
+export function describeWriteConfig(config: AdoWriteConfig): Record<string, string> {
+  return {
+    organization: config.orgName,
+    organizationUrl: config.orgUrl,
+    project: config.project,
+    credential: 'ADO_PAT_WRITE (loaded, not displayed)',
+  };
+}

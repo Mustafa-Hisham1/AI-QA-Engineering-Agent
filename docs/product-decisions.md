@@ -148,6 +148,72 @@ agent can write, so the file alone cannot be the safety boundary. Requiring
 approval at the moment of the external write puts the gate where the
 irreversible action actually happens.
 
+## 6.1 Review/Lifecycle Status — allowed values
+
+Decided 2026-08-13, when the first test case artifact was implemented
+(`docs/test-cases/US-53717/test-cases.md`). §3 left the state names undefined
+until an artifact format existed; this closes that item.
+
+| Status | Meaning | Who may set it |
+|---|---|---|
+| `Draft` | Generated, not yet self-reviewed | Agent |
+| `AI-Reviewed` | Passed the AI self-review; awaiting human review | Agent |
+| `Needs-Changes` | The human asked for changes | Agent, **only** on an explicit human statement |
+| `Approved` | The human explicitly approved the item | **Human statement only** — the agent must never set this |
+| `Published` | Created in Azure DevOps; the Azure DevOps ID field is filled | Agent, **only** after a confirmed write |
+| `Rejected` | The human rejected the item | Agent, **only** on an explicit human statement |
+
+**Rejected items are marked, not deleted** (§6). A rejected test case moves to a
+*Rejected test cases* section at the end of its artifact with status `Rejected`
+and **keeps its original ID, which is never reused.** A reused ID would silently
+re-point an existing execution record, bug, or Azure DevOps link at different
+content.
+
+The same vocabulary applies to bug candidates when that artifact is built.
+
+## 6.2 Publishing Test Cases to Azure DevOps
+
+Decided and implemented 2026-08-13, when US 53717's 52 approved cases were published.
+
+- **Test Cases are published as `Test Case` work items linked to the User Story
+  with a parent-child hierarchy relation** (`System.LinkTypes.Hierarchy-Reverse`
+  from the Test Case to the story). The `Tests`/`Tested By` link type was not used:
+  the human asked for children, and the hierarchy link is what makes them appear
+  under the story.
+- **Children inherit the parent's Area Path and Iteration Path.** Otherwise they
+  land in the project root, away from the story they belong to.
+- **`System.State` is never set on create.** The process template chooses the
+  initial state; forcing one breaks on any template whose Test Case workflow
+  differs.
+- **Azure DevOps Test Cases have no precondition or test-data field.** The internal
+  Test Case ID, Project/Module/Feature-Page, Test Type, Requirement Reference,
+  Decisions Applied, Precondition, Test Data and Notes are published in
+  `System.Description`; the steps and their per-step expected results go in
+  `Microsoft.VSTS.TCM.Steps`. Nothing approved is dropped.
+- **One item per request, and the returned ID is written to the local artifact
+  before the next create is attempted.** Batching would mean an interrupted run
+  loses the record of items that really were created — and the next run would
+  create them again.
+- **Duplicate prevention is based on Azure DevOps state, not local state:** a case
+  holding an Azure DevOps ID is never re-created, and a case without one is matched
+  against the story's existing children by title before anything is written. A
+  local file that lost an ID therefore cannot cause a duplicate.
+- **Verification reads Azure DevOps** and checks child-ness, work item type, title,
+  and **step count**. A title match alone would not catch a steps document that
+  Azure DevOps accepted but stored empty.
+- **`ADO_PAT_WRITE` requires only "Work Items (Read & write)".** The broader
+  "manage" scope is not requested — it adds destroy and permissions capability this
+  project never uses.
+
+*Reasoning for the canary:* the first publish of a new story publishes one case,
+which is verified before the rest follow. A wrong field mapping caught on item 1
+costs one deletion; caught on item 52 it costs fifty-two.
+
+*Reasoning:* the two agent-forbidden values (`Approved`, `Rejected`) are exactly
+the two that represent human authority, and `Published` is the one that must
+match external reality. Everything else describes work the agent legitimately
+does on its own.
+
 ## 7. Execution
 
 - **The agent itself executes approved UI test cases.**

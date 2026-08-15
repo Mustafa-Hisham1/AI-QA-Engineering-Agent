@@ -38,6 +38,8 @@ interface RawRelation {
 
 export interface RawWorkItem {
   readonly id?: number;
+  /** Absolute API URL of this work item, as Azure DevOps reports it. */
+  readonly url?: string;
   readonly rev?: number;
   readonly fields?: Record<string, unknown>;
   readonly relations?: readonly RawRelation[];

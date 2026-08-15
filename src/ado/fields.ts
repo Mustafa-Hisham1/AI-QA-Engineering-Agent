@@ -38,8 +38,36 @@ export const FIELD = {
   closedDate: 'Microsoft.VSTS.Common.ClosedDate',
 } as const;
 
+/**
+ * Fields that only Test Case work items carry.
+ *
+ * Deliberately a separate map from FIELD: MAPPED_FIELDS below is derived from
+ * FIELD to decide which fields the *reader* has already normalised, and adding
+ * write-only Test Case fields there would quietly change what the User Story
+ * reader reports as an extra field.
+ */
+export const TEST_CASE_FIELD = {
+  /** Test steps, as the TCM steps XML document. See buildStepsXml in ./test-case.ts. */
+  steps: 'Microsoft.VSTS.TCM.Steps',
+  automationStatus: 'Microsoft.VSTS.TCM.AutomationStatus',
+} as const;
+
+/** Work item type created by the publisher. */
+export const TEST_CASE_WORK_ITEM_TYPE = 'Test Case';
+
 /** Relation type of a file attached directly to a work item. */
 export const ATTACHED_FILE_RELATION = 'AttachedFile';
+
+/**
+ * Hierarchy link types.
+ *
+ * `-Reverse` points from a child to its parent, which is the direction used when
+ * creating a work item under a parent. `-Forward` is the parent-to-child
+ * direction seen when reading a parent's relations. Getting these the wrong way
+ * round produces a link that appears to work but inverts the hierarchy.
+ */
+export const HIERARCHY_PARENT_RELATION = 'System.LinkTypes.Hierarchy-Reverse';
+export const HIERARCHY_CHILD_RELATION = 'System.LinkTypes.Hierarchy-Forward';
 
 /**
  * Fields carrying HTML rich text, which must be converted before use.

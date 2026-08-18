@@ -121,6 +121,69 @@ Severity, Priority, Evidence, Related Test Case, Related User Story.
   linking or reporting against the existing bug rather than creating a new one.
   The human decides.
 
+### 5.1 Duplicate-check scope (human decision, 2026-08-16)
+
+§5 requires a duplicate check before creating a Bug but did not say how wide it
+should search. **It is scoped to the User Story that owns the executed Test
+Cases** — the story under which those Test Cases were generated and published.
+
+The agent does **not** search other User Stories, other parents, other area paths,
+or the project at large, and does not investigate other parents' history.
+
+*Context:* this was decided when Bug 55482 was created from US 53717. A
+project-wide search had surfaced Bug **43084** *"Missing 'Remember Me' Checkbox in
+Design and Implementation"* — Closed as *Fixed and verified*, under a different
+parent (33633) and area path (`NDCIntegrations\Integration - 2`). The human ruled
+it **out of scope for this workflow**, and the Bug was created under US 53717.
+
+*Known trade-off, accepted deliberately:* a narrow scope cannot see a matching Bug
+filed under a different story, so a cross-story duplicate is possible. That is
+preferred over a workflow that stalls on distant, differently-scoped items. Both
+searches are cheap to run; only the **story-scoped** result governs the decision.
+
+### 5.2 Bug metadata is decided per Bug, never inherited (decided 2026-08-17)
+
+Severity, assignee and Priority are decided by the human **for the specific Bug
+being published**, and carry **no** authority over any later Bug.
+
+- **Severity** — the agent proposes a value from the observed impact of *that*
+  defect and must have it explicitly confirmed; §5 gives the human final control
+  and this project has no finer-grained rule. The value written is the human's.
+  Spelled exactly as the process template spells it (this one numbers its values,
+  so a bare `Low` is rejected) — constants live in `SEVERITY` in
+  `src/ado/fields.ts`.
+- **Assignee** — comes from the human's instruction for that Bug. Never inferred
+  from the User Story owner, the Test Case author, the previous Bug, the last
+  execution, or any historical data. Publishing unassigned is allowed **only** as
+  an explicit choice, never as a fallback for silence.
+- **Priority** — **not written at all** by default, so the template's own default
+  applies. Written only when the human explicitly asks for a value on that Bug.
+
+*Reasoning:* the natural failure mode is copying the previous Bug's input file and
+editing only the title. That silently republishes a stale assignee and severity
+under a new bug's name — wrong in a way nobody reviews twice, because both fields
+look deliberately filled. The tooling therefore **refuses** an input whose
+assignee is absent, rather than defaulting it.
+
+Bug 55482's `4 - Low` / Zeyad Nasser assignment is **historical data about one
+Bug** and must never become a default.
+
+### 5.3 A publish is not finished at a Bug ID (decided 2026-08-17)
+
+Creating a work item and getting an id back does not prove the item is correct: a
+create can return 200 while a field was coerced, a relation dropped, or an
+attachment stored unreadable.
+
+**Every publish reads the Bug back and verifies it** — type, title, non-empty
+repro steps, non-terminal state, Severity, Priority (default present, or the
+explicit override), assignee, parent User Story link, related Test Case link, and
+the attachment **downloaded** rather than merely linked.
+
+On any mismatch the result is **`PUBLISH_VERIFICATION_FAILED`**, naming each
+failed check with expected vs actual, **preserving the created Bug ID**, and
+**never** creating a second Bug to compensate. This mirrors the Test Case
+publisher's `--verify` (§6.2) and is re-runnable read-only via `--verify-only`.
+
 ## 6. Review and approval
 
 **Human approval is the final authority.**
@@ -276,6 +339,61 @@ the failure.
   must be considered wherever evidence is stored, sent to a model, or attached to
   a work item.
 
+### 10.1 Execution evidence rules (decided 2026-08-16, from the RUN-001 canary)
+
+Learned by executing a real login case, not by design review.
+
+- **Accessibility snapshots are never persisted as evidence.** The Playwright
+  accessibility tree returns typed input values **in plain text — including a
+  password the UI masks on screen.** Snapshots remain the right tool for reading
+  UI state and targeting elements in-session; they are simply never written to
+  disk as evidence.
+- **Rendered screenshots are the evidence format**, and only when they expose no
+  secret. Where a credential was entered or revealed, the masking is confirmed
+  before the image is kept; an image showing a credential is **discarded** and
+  described in words instead.
+- **Execution results are versioned; evidence is gitignored.**
+  `execution-results.md` is committed so results are traceable and reviewable.
+  `evidence/` stays local because screenshots may carry credentials, PII or
+  internal product detail (§10). Whether evidence should ever be committed is an
+  open human decision, not an agent default.
+- **A settle/wait is mandatory before judging an asynchronous result.** In the
+  canary the app still showed `/login` immediately after submit and completed
+  navigation moments later — judging then would have produced a **false FAIL** on
+  an authentication case, the exact shape of a bogus bug report. A false FAIL
+  caused by insufficient settling is a **`TEST_SCRIPT_ISSUE`**, never a
+  `PRODUCT_BUG`.
+
+### 10.2 Execution runs are append-only (decided 2026-08-16)
+
+Every execution gets a fresh `RUN-<NNN>` directory under
+`docs/executions/US-<id>/`. **A previous run is never overwritten**, including a
+re-run of the same case after a fix. Overwriting would erase the evidence that a
+result is intermittent — the single most valuable signal a run history carries.
+
+Execution artifacts are kept **structured enough for a future Azure DevOps Test
+Run publisher to consume**. That publisher is deliberately **not built**:
+execution performs **no Azure DevOps writes at all** (no Test Run, no Test Result,
+no Bug), and adding one is a separate capability under its own approval gate.
+
+### 10.3 Web execution is a Skill, not TypeScript (decided 2026-08-16)
+
+Web execution lives in `.claude/skills/execute-test-cases/SKILL.md` rather than in
+`src/`, unlike the reader and publisher.
+
+*Reasoning:* the reader and publisher are deterministic transforms against a
+stable API, which is exactly what code is good at. Agent-driven execution is a
+**judgement** task — reading an unfamiliar UI, deciding whether an expected result
+was met, and classifying why something failed. Encoding that as code would freeze
+brittle selectors per application; encoding it as a skill keeps it generic across
+applications and makes the *rules* the asset. Deterministic Playwright remains a
+separate, later capability with a different purpose (§7) — a regression oracle
+rather than a bug-finding tool.
+
+The skill is granted browser tools **except** `browser_run_code_unsafe` and
+`browser_evaluate`. Arbitrary JavaScript in the page would let execution bypass
+every rule the skill enforces, including the credential and PROD restrictions.
+
 ## 11. Reporting and traceability
 
 Execution reports contain at minimum: execution summary, total test cases,
@@ -302,6 +420,28 @@ User Story -> Requirement -> Test Case -> Execution -> Evidence -> Bug
   `.env`, gitignored, with `.env.example` documenting variable names only.
 - `.gitignore` protects secrets only if it is configured before secrets exist —
   it was created first, before any `.env` was written.
+
+### 12.1 The STG host is named `-dev-` (human decision, 2026-08-16)
+
+The Admin Panel environment the team uses as **STG** for this project has a
+hostname containing **`-dev-`**:
+
+```
+https://ndc-apis-nbo-frontend-dev-…northeurope-01.azurewebsites.net
+```
+
+The human confirmed explicitly that this host **is** the intended STG target for
+execution, and that the `-dev-` in the name is naming only.
+
+**The environment is STG by human decision, never by inference from the
+hostname.** `APP_ENV=STG` in `.env` is what the allow-list checks; the hostname
+carries no authority. The agent must not treat a `-dev-`, `-uat-` or any other
+host as allowed because a name looks familiar, and must not treat this host as
+disallowed because its name says dev.
+
+**Every execution artifact records the target host verbatim** alongside the
+environment label, so no later reader can mistake which machine produced a
+result. Recorded in `docs/executions/US-53717/RUN-001/execution-results.md`.
 
 ## 13. Azure DevOps versus local files
 
@@ -362,6 +502,54 @@ integrations, and AI-assisted automation.
 **The initial implementation must not be over-engineered.** Components are
 created when the workflow genuinely requires them — the workflow decides what
 exists, not a feature checklist.
+
+## 18. Documentation synchronization is part of Definition of Done (decided 2026-08-17)
+
+Documentation sync is **not** an optional or deferred step. Whenever a meaningful
+change lands anywhere in the project, the agent checks — **in the same task** —
+whether it affects any of three surfaces, and updates them immediately:
+
+- `.claude/skills/**/SKILL.md`
+- `CLAUDE.md`
+- `docs/product-decisions.md`
+
+```
+PROJECT CHANGE -> identify affected documentation -> update Skill(s)
+  -> update CLAUDE.md -> update product decisions when durable
+  -> validate -> continue the requested task
+```
+
+**The agent must not** report staleness instead of fixing it, defer an update,
+wait to be asked, or leave a known inconsistency. **It does not ask permission**
+for these updates.
+
+**A task is not complete** while an affected Skill is stale, `CLAUDE.md` is stale,
+a durable decision is unrecorded, a Skill names a changed CLI interface, or
+documentation points at a moved path.
+
+**Triggers:** CLI command added or changed · new MCP server/tool · execution or
+publishing workflow change · security rule change · artifact path or directory
+change · product/workflow decision · a Skill created, removed, renamed or
+materially changed · an implementation that proves an existing Skill instruction
+wrong (fix it immediately rather than preserving stale text).
+
+**Not triggered by** implementation detail with no effect on workflow, Skill
+behaviour, CLI interfaces, architecture, security, MCP configuration, artifact
+structure, product decisions, or project-level rules.
+
+**The one thing that still requires the human:** new documentation content that
+encodes a genuine product or workflow decision which cannot be derived from the
+implementation or an already-recorded decision. Even then, everything technically
+determinable is updated and only the unresolved decision is flagged.
+
+*Reasoning:* this project's durable state lives in files, and its safety rules are
+enforced by Skills that a future session reads as instructions — so a stale Skill
+does not merely misinform, it **actively directs the next run to do the wrong
+thing**. That was observed concretely: `execute-test-cases` kept an "or area"
+duplicate-check scope after §5.1 narrowed it, and any run following that text
+would have repeated a corrected mistake. Documentation drift here is a defect in
+the system's behaviour, not a tidiness issue, so it is closed in the same task
+that causes it.
 
 ---
 

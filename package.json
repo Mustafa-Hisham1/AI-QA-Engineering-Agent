@@ -11,6 +11,7 @@
     "ado:check": "node src/cli/check-connection.ts",
     "story:read": "node src/cli/read-story.ts",
     "testcases:publish": "node src/cli/publish-test-cases.ts",
+    "bug:publish": "node src/cli/publish-bug.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -55,8 +55,38 @@ export const TEST_CASE_FIELD = {
 /** Work item type created by the publisher. */
 export const TEST_CASE_WORK_ITEM_TYPE = 'Test Case';
 
+/** Work item type created by the bug reporter. */
+export const BUG_WORK_ITEM_TYPE = 'Bug';
+
+/**
+ * Severity values, exactly as this process template spells them.
+ *
+ * The picklist is NOT exposed by the work item type API, and the values carry a
+ * numeric prefix — sending a bare `'Low'` is rejected. These strings were read
+ * back from Bugs that already exist in the project.
+ *
+ * Severity is `alwaysRequired` on Bug and has no default, so a create must set it.
+ * Priority, by contrast, defaults to "2" and is deliberately NOT written here:
+ * leaving a field unset is how the template's default is honoured.
+ */
+export const SEVERITY = {
+  critical: '1 - Critical',
+  high: '2 - High',
+  medium: '3 - Medium',
+  low: '4 - Low',
+} as const;
+
 /** Relation type of a file attached directly to a work item. */
 export const ATTACHED_FILE_RELATION = 'AttachedFile';
+
+/**
+ * Non-hierarchical association between two work items.
+ *
+ * Used to point a Bug at the Test Case that found it. Deliberately NOT a
+ * hierarchy link: a Test Case does not own a Bug, and making one the other's
+ * parent would corrupt the story's child tree.
+ */
+export const RELATED_RELATION = 'System.LinkTypes.Related';
 
 /**
  * Hierarchy link types.

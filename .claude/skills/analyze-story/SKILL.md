@@ -189,4 +189,12 @@ Report briefly:
 
 Then update `CLAUDE.md` only if something genuinely project-level changed — a new capability
 verified, a new invariant, a reversed decision, or a new artifact type. **Never put requirement
-detail in `CLAUDE.md`.** Do not commit. Stop and wait for human review.
+detail in `CLAUDE.md`.**
+
+**Documentation-impact check — mandatory, in this same task** (`CLAUDE.md` →
+*Documentation synchronization*, `docs/product-decisions.md` §18). If this run changed anything
+project-level — a CLI interface, an artifact path, a rule, or an instruction in **this** skill
+that turned out to be wrong — update the affected `SKILL.md`, `CLAUDE.md`, and
+`docs/product-decisions.md` **now**, without asking. Analysing a story changes none of them.
+
+Do not commit. Stop and wait for human review.

@@ -240,5 +240,11 @@ Then update `CLAUDE.md` only if something genuinely project-level changed — a 
 new invariant, a new artifact type, or a settled open item. **Never put requirement detail in
 `CLAUDE.md`.**
 
+**Documentation-impact check — mandatory, in this same task** (`CLAUDE.md` →
+*Documentation synchronization*, `docs/product-decisions.md` §18). If this run changed anything
+project-level — a CLI interface, an artifact path, a rule, or an instruction in **this** skill
+that turned out to be wrong — update the affected `SKILL.md`, `CLAUDE.md`, and
+`docs/product-decisions.md` **now**, without asking. Generating test cases changes none of them.
+
 Do not commit. Do not touch Azure DevOps. Stop and wait for human review — the human names which
 cases are approved, rejected, or need changes.

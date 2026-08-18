@@ -32,19 +32,68 @@ verify command is not built, regardless of what code exists.
 | Read User Story by ID -> Requirement Context | **Verified against real Azure DevOps** (US 53717) | `npm run story:read -- 53717` |
 | Read + download Markdown attachments | **Verified against real Azure DevOps** (US 53717) | `npm run story:read -- 53717 --summary` |
 | Requirement analysis workflow | **Reusable skill, verified on US 53717** | `/analyze-story <ID>` |
-| Requirement analysis artifact | **One produced, 12 decisions applied** | `docs/requirements/US-53717/` |
-| Test Case generation workflow | **Reusable skill exists.** The US 53717 set was produced by following its steps in-session; the skill has not yet been invoked as a skill | `/write-test-cases <ID>` |
-| Test Case artifact | **One produced — 52 cases, AI self-reviewed, HUMAN-APPROVED then PUBLISHED 2026-08-13** | `docs/test-cases/US-53717/test-cases.md` |
-| Azure DevOps **write** path (`ADO_PAT_WRITE`) | **Verified against real Azure DevOps** — 52 Test Cases created, 0 failures, 0 duplicates | `npm run testcases:publish -- 53717` (dry run) |
-| Publishing Test Cases as children of a User Story | **Verified against real Azure DevOps** (US 53717 → IDs 55294–55345) | `/publish-test-cases <ID>` |
-| Web execution, bugs, reporting, automation | Not built | — |
+| Requirement analysis artifact | **Two produced** — US 53717 (12 decisions) and US 52860 (5 decisions, requirement + Change Request read together) | `docs/requirements/US-53717/`, `docs/requirements/US-52860/` |
+| Test Case generation workflow | **Reusable skill, verified** — invoked as a skill on US 52860, producing 35 cases from a requirement plus a Change Request | `/write-test-cases <ID>` |
+| Test Case artifact | **Two produced** — US 53717 (52 cases) and US 52860 (35 cases), both AI self-reviewed, HUMAN-APPROVED and PUBLISHED | `docs/test-cases/US-53717/test-cases.md`, `docs/test-cases/US-52860/test-cases.md` |
+| Azure DevOps **write** path (`ADO_PAT_WRITE`) | **Verified against real Azure DevOps** — 87 Test Cases created across two stories, 0 failures, 0 duplicates | `npm run testcases:publish -- <ID>` (dry run) |
+| Publishing Test Cases as children of a User Story | **Verified against real Azure DevOps, twice** (US 53717 → 55294–55345; US 52860 → 55648–55683) | `/publish-test-cases <ID>` |
+| Manual web execution against STG (Playwright MCP) | **Canary verified against the real app** — TC-53717-006 executed, PASS | `docs/executions/US-53717/RUN-001/execution-results.md` |
+| Execution results artifact | **One produced** — RUN-001, 1 of 52 cases | `docs/executions/US-53717/RUN-001/` |
+| Web execution workflow | **Reusable skill, verified** — invoked as a skill on TC-53717-002, found a real defect | `/execute-test-cases <ID> [<TC-ID>…]` |
+| Bug Candidate artifact | **One produced** — RUN-002, human-approved | `docs/executions/US-53717/RUN-002/bug-candidates/` |
+| Creating Bugs in Azure DevOps | **Verified against real Azure DevOps** — Bug 55482 created, assigned, linked, attachment verified byte-identical | `npm run bug:publish -- <input.json>` (dry run) |
+| Bug publishing workflow | **Reusable skill.** Duplicate refusal and post-create verification both exercised against real Azure DevOps (read-only) | `/publish-bug <bug-candidate>` |
+| Post-create Bug verification | **Verified** — 10 checks, mismatches correctly reported as `PUBLISH_VERIFICATION_FAILED` | `npm run bug:publish -- <input.json> --verify-only <id>` |
+| Reporting, ADO Test Runs, automation | Not built | — |
 
-**Next capability:** **AI web execution of the published Test Cases against STG**
-— open the portal, execute step by step, record PASS/FAIL/BLOCKED/SKIPPED,
-screenshot on failure, classify failures. **Not started — do not create it until
-asked.** Only Admin Panel cases are in scope for manual execution for now (human
-decision, 2026-08-13); the Agent Portal cases are published but not yet queued for
-execution.
+**Web execution has started, canary-first.** TC-53717-006 was executed manually
+against STG through the Playwright MCP server on 2026-08-16 and **passed**; the
+result is in `docs/executions/US-53717/RUN-001/`. The canary validated the flow,
+the step-level result format and the evidence rules, and **the reusable
+`/execute-test-cases` skill was then extracted from what that run proved** — its
+hard rules are lessons from a real execution, not theory.
+
+Only Admin Panel cases are in scope for manual execution for now (human decision,
+2026-08-13); the Agent Portal cases are published but not yet queued.
+
+**Next capability:** execute the remaining approved Admin Panel cases through the
+skill. `ADMIN_LOCKOUT` and `ADMIN_DISABLED` are **not yet configured** in `.env`,
+so cases needing them will be BLOCKED / `TEST_DATA_ISSUE` until they are.
+
+**Execution never writes to Azure DevOps.** No Test Run, no Test Result, no Bug is
+created by execution. A failure classified `PRODUCT_BUG` becomes a **local Bug
+Candidate** that stops for human review; every other classification
+(`TEST_DATA_ISSUE`, `ENVIRONMENT_ISSUE`, `NETWORK_ISSUE`, `AUTHENTICATION_ISSUE`,
+`TEST_SCRIPT_ISSUE`, `UNKNOWN`) is recorded with evidence and raises no bug.
+
+**Creating the Bug is a separate, human-gated skill** — `/publish-bug`, never part
+of execution. The pipeline is:
+
+```
+PRODUCT_BUG -> Bug Candidate -> human review -> /publish-bug -> verify
+```
+
+Dry run by default; `--confirm` requires explicit approval immediately beforehand.
+**Duplicate checking is scoped to the User Story that owns the executed Test
+Cases** (human decision, 2026-08-16 — `docs/product-decisions.md` §5.1).
+
+**Severity and assignee are decided by the human per Bug and are never inherited**
+from a previously published Bug (`docs/product-decisions.md` §5.2). **Priority is
+not written at all** unless the human explicitly asks for a value, so the process
+template's default applies. Input schema: `docs/bug-input.schema.md`.
+
+**A publish is not finished when Azure DevOps returns an ID.** The item is read
+back and checked field by field; a mismatch is reported as
+**`PUBLISH_VERIFICATION_FAILED`** with the Bug ID preserved, and **never** by
+creating a second Bug.
+
+**Two execution rules the canary proved, the hard way:**
+- **Wait for the app to settle before judging a result.** After submitting login
+  the page was still on `/login`; navigation completed a moment later. Reading the
+  result immediately would have produced a **false FAIL**.
+- **Never persist an accessibility snapshot as evidence.** The Playwright
+  accessibility tree returns typed passwords in **plain text** even though the UI
+  masks them. Rendered screenshots are the safe artifact (invariant 7).
 
 **Publishing is done for US 53717 and is idempotent.** Re-running the publisher
 creates nothing: it skips any case holding an Azure DevOps ID and matches the rest
@@ -53,6 +102,22 @@ against the story's existing children by title.
 **The two workflows are deliberately separate skills.** Requirement analysis and
 test case generation have different inputs, different review gates, and different
 failure modes; merging them would hide which step produced a wrong result.
+
+**A User Story may carry a Change Request as a second attachment.** US 52860 attached both
+a module-level requirement (`Geo-Master-Requirements-City-Region-State.md`, covering City,
+Region **and** State) and a City-scoped Change Request (`City-CR.md`). The workflow handled
+this by reading both, keeping the **original requirement** and the **requested change**
+separately identifiable in the analysis, and deriving a **final expected behaviour** section
+from the two combined (human decision D-02 on that story). **Do not merge a Change Request
+into the baseline silently** — a case asserting a superseded baseline rule becomes a false
+bug report. The reverse also matters: three cases in that set assert CR behaviour that
+directly contradicts the specification's literal text.
+
+**A story's scope may be narrower than its specification.** US 52860's specification
+documents three features; the human scoped test cases to **City only** (D-01). Most of the
+specification's requirement count was therefore deliberately out of scope, recorded as
+explicit exclusions rather than dropped. When a requirement belongs to another entity, a
+record of it being *used as test data* is in scope; an *assertion about it* is not.
 
 **V1 reader scope: `User Story` work item type only.** This Azure DevOps project
 exposes 22 work item types including `Product Backlog Item`, `Epic`, `Feature`
@@ -177,6 +242,32 @@ then verify against Azure DevOps. Refuses anything not `Approved`; cannot create
 duplicates; never retries a write; never commits. Defined in
 `.claude/skills/publish-test-cases/SKILL.md`.
 
+```
+/publish-bug <path-to-bug-candidate>
+```
+
+Publishes **one** human-reviewed Bug Candidate to Azure DevOps as a Bug under the
+User Story that owns the failing Test Case, links it to that story and to the Test
+Case, uploads its evidence, then **verifies the created item field by field**.
+Duplicate checking is **story-scoped only**. Severity and assignee must be
+supplied by the human for that Bug; Priority is left to Azure DevOps unless
+explicitly overridden. Refuses anything not `PRODUCT_BUG`; never retries a write;
+never commits. Defined in `.claude/skills/publish-bug/SKILL.md`.
+
+```
+/execute-test-cases <USER_STORY_ID> [<TC-ID> ...]
+```
+
+Executes the **approved** Web UI Test Cases of that story against the allow-listed
+environment through the **Playwright MCP server**, step by step, verifying each
+stated Expected Result and recording PASS/FAIL/BLOCKED/SKIPPED with step-level
+Expected vs Actual, failure classification and evidence into a **new**
+`docs/executions/US-<ID>/RUN-<NNN>/`. Narrow it to specific Test Case IDs, or run a
+single case alone. It **never writes to Azure DevOps**, never modifies a Test Case,
+never invents an Expected Result, and never commits. A failure classified
+`PRODUCT_BUG` produces a **local Bug Candidate and stops for human review**.
+Defined in `.claude/skills/execute-test-cases/SKILL.md`.
+
 ### npm scripts
 
 ```bash
@@ -193,8 +284,18 @@ npm run testcases:publish -- 53717 --confirm   # performs the writes (needs appr
 npm run testcases:publish -- 53717 --verify    # verify published children, writes nothing
 npm run testcases:publish -- 53717 --confirm --limit 1   # canary: publish one item
 
+npm run bug:publish -- <input.json>                    # DRY RUN + story-scoped duplicate check
+npm run bug:publish -- <input.json> --confirm          # publishes, then verifies
+npm run bug:publish -- <input.json> --verify-only <id> # re-verify an existing Bug, writes nothing
+
 npm run typecheck            # tsc --noEmit, strict
 ```
+
+`bug:publish` is **dry run by default** and publishes **one** Bug per invocation —
+there is no batch mode, because a loop is how duplicate Bugs get created. Input
+schema: `docs/bug-input.schema.md`. Exit code **3** means
+`PUBLISH_VERIFICATION_FAILED`: the Bug **exists** and must be fixed by hand, never
+by re-running.
 
 `testcases:publish` is **dry run by default** and the only script that can write to
 Azure DevOps. It requires `ADO_PAT_WRITE`; every other script works without it.
@@ -216,14 +317,19 @@ documents the required variables with empty placeholders.
 ```
 .claude/skills/<name>/SKILL.md
                   Reusable workflow skills: analyze-story, write-test-cases,
-                  publish-test-cases. Invokable by Claude or as /<name> <ID>.
+                  publish-test-cases, execute-test-cases. Invokable by Claude or
+                  as /<name> <ID>.
 src/ado/          Azure DevOps integration. The only place ADO field names exist.
                   config -> credentials/env, read AND write loaders (invariant 7)
                   http -> GET-only transport, retries
                   http-write -> POST/PATCH only, NO retries (invariant 4)
                   client -> AdoReadClient    |  user-story -> Requirement Context
-                  write-client -> AdoWriteClient, creates work items
+                  write-client -> AdoWriteClient, creates work items, uploads
+                                  attachments, links relations
                   test-case -> TestCaseRecord -> ADO Test Case fields + steps XML
+                  bug -> BugCandidateRecord -> ADO Bug fields + repro-steps HTML.
+                         Severity IS written (required, no default); Priority is
+                         NEVER written, so the template default stands.
                   fields -> System.*/Microsoft.VSTS.* reference names
 src/testcases/    Test Case artifact handling with NO ADO knowledge.
                   model -> TestCaseRecord, status vocabulary
@@ -256,7 +362,25 @@ docs/test-cases/US-<id>/
                                             human-set statuses and published
                                             Azure DevOps IDs must survive
                                             regeneration.
+docs/executions/US-<id>/RUN-<nnn>/
+                  execution-results.md      One manual execution run: provenance
+                                            (environment label AND target host
+                                            verbatim), per-case status, step-level
+                                            Expected vs Actual, failure
+                                            classification, observations. Never
+                                            modifies test-cases.md.
+                  evidence/                 Screenshots for that run. GITIGNORED —
+                                            local only, never committed. Rendered
+                                            screenshots only; never accessibility
+                                            snapshots, which leak passwords.
+                  bug-candidates/           Local Bug Candidates raised by that run,
+                                            status Draft, awaiting human review.
+                                            NEVER auto-published to Azure DevOps.
 ```
+
+**Runs are append-only.** A re-execution after a fix is a **new** `RUN-<NNN>`, never
+an overwrite — run history is what makes a flaky result visible instead of hiding it
+behind the latest green.
 
 **Test cases live outside `docs/requirements/`** deliberately. That directory holds
 the requirement source of truth and human decisions; test cases are regenerable QA
@@ -304,6 +428,50 @@ US 53717 is a *Feature* (Login) inside the *Authentication* module.
 - **Comments** explain *why*, not *what*.
 
 ---
+
+## Documentation synchronization — mandatory
+
+**Documentation sync is part of Definition of Done, not a follow-up step**
+(human decision, 2026-08-17 — `docs/product-decisions.md` §18).
+
+Whenever a change lands anywhere in the project, run a documentation-impact check
+**in the same task** and update whatever it affects:
+
+```
+PROJECT CHANGE
+  -> identify affected documentation
+  -> update affected Skill(s)
+  -> update CLAUDE.md
+  -> update docs/product-decisions.md when the change is a durable decision
+  -> validate
+  -> continue the requested task
+```
+
+Three surfaces are in scope: **`.claude/skills/**/SKILL.md`**, **`CLAUDE.md`**, and
+**`docs/product-decisions.md`**.
+
+**Never** report that documentation is stale instead of fixing it, defer an update,
+wait to be asked, or leave a known inconsistency behind. **Do not ask permission**
+to perform these updates — they are maintenance.
+
+**A task is NOT complete if** an affected Skill is stale, CLAUDE.md is stale, a
+durable decision is unrecorded, a Skill still names a changed CLI interface, or
+documentation still points at a moved path.
+
+**Triggers include:** a CLI command added or changed · a new MCP server or tool ·
+an execution or publishing workflow change · a security rule change · an artifact
+path or directory change · a product/workflow decision · a Skill created, removed,
+renamed, or materially changed · **an implementation that proves an existing Skill
+instruction wrong** — fix the Skill immediately rather than preserving stale text.
+
+**Not triggered by** trivial implementation detail with no effect on workflow,
+Skill behaviour, CLI interfaces, architecture, security, MCP configuration,
+artifact structure, product decisions, or project-level rules.
+
+**Ask the human only** when new documentation content encodes a genuine
+product/workflow decision that cannot be derived from the implementation or an
+already-recorded decision — and even then, update everything technical that *is*
+determinable and flag only the unresolved decision.
 
 ## Maintaining this file
 
@@ -364,6 +532,33 @@ them.
   questions themselves.
 - **Server-side validation re-enforcement (REQ-LOG-018 AC-2) has no coverage** in
   the UI-only scope. Recorded as a known gap in the test case artifact, not dropped.
+- **No `Remember Me` control was visible on the Admin Panel login form** during
+  RUN-001, though TC-53717-002 expects one. **Unverified** — TC-53717-002 has not
+  been executed, so this is an observation, not a result and not a bug. Execute
+  that case before drawing any conclusion.
+- **US 52860's 35 City test cases are published** (Azure DevOps 55648–55683, verified).
+  Azure DevOps is now the official record for them (`docs/product-decisions.md` §13).
+  **Not yet executed** — none of its 12 test-data prerequisites is confirmed in STG, and the
+  City screen's location is unknown (OQ-12 in that story's analysis).
+- **US 52860 has four open questions that block coverage, not publication.**
+  **OQ-06** (the Change Request's button matrix has no *Update / authority=Yes / Inactive*
+  row) and **OQ-07** ("Inactive" means Pending, Rejected, *or* Approved-but-deactivated) are
+  the source's own High-severity warnings. By human decision **D-05** they produce **no test
+  case at all** — not even observation-only — and no invented Expected Result. **OQ-02**
+  (is the deliverable UI, API, or both?) leaves `REQ-CIT-015` and `REQ-CIT-017` — the Change
+  Request's back-end enforcement requirements — **uncoverable by the UI-only scope**.
+  **OQ-01**: the CR names a `City-Change-Request.md` full-detail document that was never
+  attached, so only its summary was available.
+- **US 52860 has 10 open Bugs under the same story** that describe behaviour its new test
+  cases assert (54370, 54589, 54591, 54604, 55040, 55043, 55054, 55056 among them). Several
+  cases are therefore **expected to FAIL on first execution** — that is the test working, not
+  a defect in the test. Bug 54591 (City Code `ALEX` treated as equal to `AL I`) points at a
+  real case/space-comparison defect touching **WARN-002**, which no source defines and which
+  decision D-03 deliberately did **not** settle — D-03 fixed uniqueness *scope*, not its
+  *case rule*.
+- **Whether execution evidence stays gitignored** (current behaviour) or gets
+  committed for traceability is undecided. Screenshots may contain internal
+  product data, so the safe default stands until a human decides.
 
 Add here when a project-level question is raised but not yet decided, and remove
 the entry when it is answered.

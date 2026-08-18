@@ -90,6 +90,39 @@ export interface ChildWorkItem {
   readonly stepCount: number | null;
 }
 
+/** One relation on a work item, normalised for verification. */
+export interface WorkItemRelation {
+  readonly rel: string;
+  /** Target work item id, when the relation points at a work item. */
+  readonly targetId: number | null;
+  /** Attachment file name, when the relation is an attached file. */
+  readonly fileName: string | null;
+  readonly url: string;
+}
+
+/**
+ * A Bug as actually stored in Azure DevOps.
+ *
+ * Read back after a create so publishing can be verified against the service
+ * rather than against the response to the write that created it.
+ */
+export interface BugWorkItem {
+  readonly id: number;
+  readonly workItemType: string;
+  readonly title: string;
+  readonly state: string;
+  /** Assignee's unique name (usually an email), or null when unassigned. */
+  readonly assignedToUniqueName: string | null;
+  readonly assignedToDisplayName: string | null;
+  readonly severity: string | null;
+  readonly priority: string | null;
+  readonly areaPath: string | null;
+  readonly iterationPath: string | null;
+  /** True when the repro steps field carries content. */
+  readonly hasReproSteps: boolean;
+  readonly relations: readonly WorkItemRelation[];
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
@@ -311,6 +344,84 @@ export class AdoReadClient {
     }
 
     return children;
+  }
+
+  /**
+   * Reads one Bug back from Azure DevOps, with relations.
+   *
+   * Exists so a publish can be verified against the service instead of against
+   * the response to its own write. A create can return 200 with an id while a
+   * field was silently coerced or a relation was dropped — only a read-back
+   * catches that.
+   *
+   * Lives on the READ client, not the write client: verification is a read, and
+   * the write client has no GET by design (invariant 3).
+   */
+  async readBug(id: number): Promise<BugWorkItem> {
+    const raw = await this.#getWorkItem(id);
+
+    if (typeof raw.id !== 'number') {
+      throw new AdoError('NOT_FOUND', `Azure DevOps returned no usable work item for id ${id}.`, {
+        hint: 'The id may not exist, or the read token cannot see it.',
+      });
+    }
+
+    const fields = raw.fields ?? {};
+    const text = (name: string): string | null => {
+      const value = fields[name];
+      return typeof value === 'string' && value.trim() ? value : null;
+    };
+
+    // Priority is numeric in Azure DevOps; normalised to string so "not set" and
+    // "set to 2" stay distinguishable from each other.
+    const priorityRaw = fields[FIELD.priority];
+    const priority =
+      typeof priorityRaw === 'number' ? String(priorityRaw) : typeof priorityRaw === 'string' ? priorityRaw : null;
+
+    const identity = fields[FIELD.assignedTo] as
+      | { readonly uniqueName?: unknown; readonly displayName?: unknown }
+      | undefined;
+
+    const relations: WorkItemRelation[] = (raw.relations ?? []).map((relation) => {
+      const url = relation.url ?? '';
+      const match = /\/(\d+)$/.exec(url);
+      const name = (relation as { attributes?: { name?: unknown } }).attributes?.name;
+      return {
+        rel: relation.rel ?? '',
+        targetId: match ? Number(match[1]) : null,
+        fileName: typeof name === 'string' ? name : null,
+        url,
+      };
+    });
+
+    const reproSteps = fields[FIELD.reproSteps];
+
+    return {
+      id: raw.id,
+      workItemType: text(FIELD.workItemType) ?? '',
+      title: text(FIELD.title) ?? '',
+      state: text(FIELD.state) ?? '',
+      assignedToUniqueName: typeof identity?.uniqueName === 'string' ? identity.uniqueName : null,
+      assignedToDisplayName: typeof identity?.displayName === 'string' ? identity.displayName : null,
+      severity: text(FIELD.severity),
+      priority,
+      areaPath: text(FIELD.areaPath),
+      iterationPath: text(FIELD.iterationPath),
+      hasReproSteps: typeof reproSteps === 'string' && reproSteps.trim().length > 0,
+      relations,
+    };
+  }
+
+  /**
+   * Downloads an attachment by URL and returns its size.
+   *
+   * Verification needs this because a relation naming a file proves only that a
+   * link exists — not that the bytes are retrievable. An attachment that 404s on
+   * download looks perfectly healthy in the work item's relation list.
+   */
+  async fetchAttachmentSize(url: string): Promise<number> {
+    const { bytes } = await getBytes(url, this.#authHeader, this.#requestOptions);
+    return bytes.byteLength;
   }
 
   /**

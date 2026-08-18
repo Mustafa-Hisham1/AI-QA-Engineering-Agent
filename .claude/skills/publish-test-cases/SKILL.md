@@ -154,5 +154,11 @@ Report:
 4. The verification result.
 5. That the artifact now records every ID, and that re-running cannot duplicate.
 
-Then update `CLAUDE.md` if a capability became usable end to end or an invariant changed.
+**Documentation-impact check — mandatory, in this same task** (`CLAUDE.md` →
+*Documentation synchronization*, `docs/product-decisions.md` §18). If publishing changed anything
+project-level — a CLI interface, an artifact path, a rule, or an instruction in **this** skill
+that turned out to be wrong — update the affected `SKILL.md`, `CLAUDE.md`, and
+`docs/product-decisions.md` **now**, without asking. Update *Current state* only when a
+capability became usable end to end or an invariant changed.
+
 **Do not commit. Do not push.**

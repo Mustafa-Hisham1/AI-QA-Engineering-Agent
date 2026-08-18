@@ -252,3 +252,64 @@ export function patchJsonPatch<T>(
 ): Promise<T> {
   return write<T>(url, 'PATCH', authHeader, options, operations, JSON_PATCH_CONTENT_TYPE);
 }
+
+/**
+ * Uploads raw bytes to the attachment store and returns the created attachment.
+ *
+ * Separate from `write()` because the body is binary rather than JSON — passing
+ * bytes through `JSON.stringify` would corrupt them silently, producing an
+ * attachment that uploads "successfully" and cannot be opened.
+ *
+ * This creates an orphan attachment: it belongs to no work item until a caller
+ * links it. An unlinked attachment is harmless and is garbage-collected by
+ * Azure DevOps, so a failure between upload and link leaves no broken state.
+ *
+ * ONE attempt, like every other write in this module (invariant 4).
+ *
+ * @throws {AdoError} on any failure.
+ */
+export async function postAttachment(
+  url: string,
+  authHeader: string,
+  options: WriteRequestOptions,
+  bytes: Uint8Array,
+): Promise<{ readonly id?: string; readonly url?: string }> {
+  let response: Response;
+
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: authHeader,
+        Accept: 'application/json',
+        'Content-Type': 'application/octet-stream',
+        'User-Agent': 'ai-qa-engineering-agent/0.0.1',
+      },
+      // Copied into a fresh ArrayBuffer so the exact byte length is sent.
+      body: bytes.slice().buffer as ArrayBuffer,
+      signal: AbortSignal.timeout(options.timeoutMs),
+    });
+  } catch (error) {
+    throw mapWriteNetworkError(error, url);
+  }
+
+  if (!response.ok) {
+    let raw = '';
+    try {
+      raw = await response.text();
+    } catch {
+      // A body that cannot be read must not mask the status-based error.
+    }
+    throw mapWriteErrorResponse(response, url, raw);
+  }
+
+  try {
+    return (await response.json()) as { id?: string; url?: string };
+  } catch (error) {
+    throw new AdoError('UNEXPECTED_RESPONSE', `The attachment upload succeeded but its response could not be parsed: ${url}`, {
+      status: response.status,
+      cause: error,
+      hint: 'The attachment was probably stored but its URL is unknown, so it cannot be linked. Re-upload is safe: an unlinked attachment is discarded by Azure DevOps.',
+    });
+  }
+}

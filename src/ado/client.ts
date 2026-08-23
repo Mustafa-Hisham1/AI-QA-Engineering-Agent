@@ -118,8 +118,12 @@ export interface BugWorkItem {
   readonly priority: string | null;
   readonly areaPath: string | null;
   readonly iterationPath: string | null;
+  /** True when the description field carries content. */
+  readonly hasDescription: boolean;
   /** True when the repro steps field carries content. */
   readonly hasReproSteps: boolean;
+  /** True when the system info field carries content. */
+  readonly hasSystemInfo: boolean;
   readonly relations: readonly WorkItemRelation[];
 }
 
@@ -394,7 +398,11 @@ export class AdoReadClient {
       };
     });
 
+    // The three rich-text fields are read back independently because the Bug
+    // field mapping puts different content in each (see src/ado/bug.ts).
+    const description = fields[FIELD.description];
     const reproSteps = fields[FIELD.reproSteps];
+    const systemInfo = fields[FIELD.systemInfo];
 
     return {
       id: raw.id,
@@ -407,7 +415,9 @@ export class AdoReadClient {
       priority,
       areaPath: text(FIELD.areaPath),
       iterationPath: text(FIELD.iterationPath),
+      hasDescription: typeof description === 'string' && description.trim().length > 0,
       hasReproSteps: typeof reproSteps === 'string' && reproSteps.trim().length > 0,
+      hasSystemInfo: typeof systemInfo === 'string' && systemInfo.trim().length > 0,
       relations,
     };
   }

@@ -83,15 +83,28 @@ function orderedListHtml(items: readonly string[]): string {
 }
 
 /**
+ * Builds the Description HTML.
+ *
+ * The Description carries the Bug Candidate's Description and NOTHING else.
+ * Repro detail lives in Repro Steps and run context lives in System Info — see
+ * the field-mapping note on buildCreateBugOperations. Duplicating any of it here
+ * is what makes a Bug read as three slightly-diverging copies of itself.
+ */
+export function buildDescriptionHtml(bug: BugCandidateRecord): string {
+  return `<p>${escapeHtml(bug.description)}</p>`;
+}
+
+/**
  * Builds the Repro Steps HTML — the field a developer actually reads.
  *
- * Azure DevOps Bugs have no separate precondition, expected-result or
- * environment field, so all of it goes here in a fixed order. Losing the
- * Expected/Actual pair is what turns a reproducible bug report into an argument.
+ * Scope is fixed and exclusive: preconditions, steps, expected, actual, the
+ * requirement reference and the related Test Case. The Description is NOT
+ * repeated here, and environment / classification / evidence belong to System
+ * Info. Losing the Expected/Actual pair is what turns a reproducible bug report
+ * into an argument, so both are always emitted.
  */
 export function buildReproStepsHtml(bug: BugCandidateRecord): string {
   return [
-    `<p>${escapeHtml(bug.description)}</p>`,
     '<p><b>Preconditions</b></p>',
     listHtml(bug.preconditions),
     '<p><b>Steps to Reproduce</b></p>',
@@ -100,12 +113,25 @@ export function buildReproStepsHtml(bug: BugCandidateRecord): string {
     `<p>${escapeHtml(bug.expectedResult)}</p>`,
     '<p><b>Actual Result</b></p>',
     `<p>${escapeHtml(bug.actualResult)}</p>`,
-    '<p><b>Environment</b></p>',
-    `<p>${escapeHtml(bug.environmentLabel)} — ${escapeHtml(bug.environmentHost)}</p>`,
     '<p><b>Requirement Reference</b></p>',
     `<p>${escapeHtml(bug.requirementReference)}</p>`,
     '<p><b>Related Test Case</b></p>',
     `<p>${escapeHtml(bug.relatedTestCaseLocalId)} (Azure DevOps #${bug.relatedTestCaseAdoId})</p>`,
+  ].join('');
+}
+
+/**
+ * Builds the System Info HTML — where the run happened and what proves it.
+ *
+ * Scope is fixed and exclusive: environment (label AND host, because they can
+ * disagree), failure classification, evidence note. The environment label is
+ * never inferred from the host, and no credential or test secret is ever carried
+ * here — test data is referenced by handle upstream (invariant 7).
+ */
+export function buildSystemInfoHtml(bug: BugCandidateRecord): string {
+  return [
+    '<p><b>Environment</b></p>',
+    `<p>${escapeHtml(bug.environmentLabel)} — ${escapeHtml(bug.environmentHost)}</p>`,
     '<p><b>Failure Classification</b></p>',
     `<p>${escapeHtml(bug.failureClassification)}</p>`,
     '<p><b>Evidence</b></p>',
@@ -115,6 +141,19 @@ export function buildReproStepsHtml(bug: BugCandidateRecord): string {
 
 /**
  * Builds the JSON Patch document that creates the Bug.
+ *
+ * FIELD MAPPING (human decision, 2026-08-23 — `docs/product-decisions.md` §5.4).
+ * The three rich-text fields are DISJOINT; each piece of the Bug Candidate lands
+ * in exactly one of them:
+ *
+ *   Description   -> the Bug Candidate's Description, alone.
+ *   Repro Steps   -> Preconditions, Steps to Reproduce, Expected Result,
+ *                    Actual Result, Requirement Reference, Related Test Case.
+ *   System Info   -> Environment, Failure Classification, Evidence.
+ *
+ * The whole candidate is deliberately NOT dumped into Repro Steps: a reviewer
+ * reading three near-identical blocks cannot tell which one is authoritative,
+ * and Azure DevOps shows Description first in every board card and query view.
  *
  * NOTE ON PRIORITY: Priority is written ONLY when the human explicitly asked for
  * a value on this bug (`placement.priorityOverride`). Otherwise the field is
@@ -131,7 +170,9 @@ export function buildCreateBugOperations(
 ): JsonPatchOperation[] {
   const operations: JsonPatchOperation[] = [
     { op: 'add', path: `/fields/${FIELD.title}`, value: bug.title },
+    { op: 'add', path: `/fields/${FIELD.description}`, value: buildDescriptionHtml(bug) },
     { op: 'add', path: `/fields/${FIELD.reproSteps}`, value: buildReproStepsHtml(bug) },
+    { op: 'add', path: `/fields/${FIELD.systemInfo}`, value: buildSystemInfoHtml(bug) },
     { op: 'add', path: `/fields/${FIELD.severity}`, value: placement.severity },
     // Children inherit the story's area and iteration; otherwise the Bug lands
     // in the project root, away from the work it belongs to.
@@ -254,7 +295,9 @@ export function verifyBug(
     readonly assignedToUniqueName: string | null;
     readonly severity: string | null;
     readonly priority: string | null;
+    readonly hasDescription: boolean;
     readonly hasReproSteps: boolean;
+    readonly hasSystemInfo: boolean;
     readonly relations: readonly { readonly rel: string; readonly targetId: number | null; readonly fileName: string | null }[];
   },
   expected: BugExpectation,
@@ -271,7 +314,14 @@ export function verifyBug(
 
   check('title', actual.title === expected.title, expected.title, actual.title || '(none)');
 
+  // Each of the three rich-text fields is checked SEPARATELY. The mapping puts
+  // distinct content in each, so an empty one means a whole section of the Bug
+  // Candidate silently failed to land — which a single combined check would miss.
+  check('description present', actual.hasDescription, 'non-empty description', actual.hasDescription ? 'present' : 'EMPTY');
+
   check('repro steps present', actual.hasReproSteps, 'non-empty repro steps', actual.hasReproSteps ? 'present' : 'EMPTY');
+
+  check('system info present', actual.hasSystemInfo, 'non-empty system info', actual.hasSystemInfo ? 'present' : 'EMPTY');
 
   // An initial state is whatever the template's first state is, so the check is
   // that the Bug is NOT already resolved or closed — a published bug that lands

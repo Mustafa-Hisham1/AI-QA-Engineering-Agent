@@ -41,9 +41,10 @@ verify command is not built, regardless of what code exists.
 | Execution results artifact | **One produced** — RUN-001, 1 of 52 cases | `docs/executions/US-53717/RUN-001/` |
 | Web execution workflow | **Reusable skill, verified** — invoked as a skill on TC-53717-002, found a real defect | `/execute-test-cases <ID> [<TC-ID>…]` |
 | Bug Candidate artifact | **One produced** — RUN-002, human-approved | `docs/executions/US-53717/RUN-002/bug-candidates/` |
-| Creating Bugs in Azure DevOps | **Verified against real Azure DevOps** — Bug 55482 created, assigned, linked, attachment verified byte-identical | `npm run bug:publish -- <input.json>` (dry run) |
+| Creating Bugs in Azure DevOps | **Verified against real Azure DevOps, twice** — Bug 55482 (US 53717) and Bug 56329 (US 56109, workflow test) created, assigned, linked, attachment verified byte-identical | `npm run bug:publish -- <input.json>` (dry run) |
 | Bug publishing workflow | **Reusable skill.** Duplicate refusal and post-create verification both exercised against real Azure DevOps (read-only) | `/publish-bug <bug-candidate>` |
-| Post-create Bug verification | **Verified** — 10 checks, mismatches correctly reported as `PUBLISH_VERIFICATION_FAILED` | `npm run bug:publish -- <input.json> --verify-only <id>` |
+| Post-create Bug verification | **Verified** — mismatches correctly reported as `PUBLISH_VERIFICATION_FAILED`. **12 checks**: Description, Repro Steps and System Info asserted non-empty **separately** | `npm run bug:publish -- <input.json> --verify-only <id>` |
+| Disjoint Bug field mapping (Description / Repro Steps / System Info) | **Verified against real Azure DevOps** — Bug 56329, read back and checked phrase by phrase: 20 separation checks, nothing duplicated across the three fields | `docs/executions/US-56109/RUN-000/bug-candidates/` |
 | Reporting, ADO Test Runs, automation | Not built | — |
 
 **Web execution has started, canary-first.** TC-53717-006 was executed manually
@@ -76,6 +77,31 @@ PRODUCT_BUG -> Bug Candidate -> human review -> /publish-bug -> verify
 Dry run by default; `--confirm` requires explicit approval immediately beforehand.
 **Duplicate checking is scoped to the User Story that owns the executed Test
 Cases** (human decision, 2026-08-16 — `docs/product-decisions.md` §5.1).
+
+**The Bug's Azure DevOps field mapping is disjoint** (human decision, 2026-08-23 —
+`docs/product-decisions.md` §5.4). The whole Bug Candidate is never dumped into
+Repro Steps; each part of it lands in exactly one field, with nothing repeated:
+
+```
+Title       -> System.Title
+Description -> Description
+Repro Steps -> Preconditions, Steps to Reproduce, Expected Result,
+               Actual Result, Requirement Reference, Related Test Case
+System Info -> Environment (label AND host), Failure Classification, Evidence
+```
+
+`bug.description` is therefore **required** — it is the sole content of the field
+Azure DevOps shows first on every board card. Evidence is still uploaded as a real
+attachment; System Info carries the note describing it. Verification asserts all
+three fields are non-empty **separately**, because one combined check would hide a
+whole missing section.
+
+**The mapping is verified against real Azure DevOps.** Bug **56329** was published
+under US 56109 on 2026-08-23 as a deliberate **workflow test** using Bug 55482's
+content as dummy data, then read back and checked phrase by phrase: every section
+appeared in exactly one field, Description carried no section heading, and nothing
+was duplicated. Record:
+`docs/executions/US-56109/RUN-000/bug-candidates/BUG-CANDIDATE-001.md`.
 
 **Severity and assignee are decided by the human per Bug and are never inherited**
 from a previously published Bug (`docs/product-decisions.md` §5.2). **Priority is
@@ -327,7 +353,10 @@ src/ado/          Azure DevOps integration. The only place ADO field names exist
                   write-client -> AdoWriteClient, creates work items, uploads
                                   attachments, links relations
                   test-case -> TestCaseRecord -> ADO Test Case fields + steps XML
-                  bug -> BugCandidateRecord -> ADO Bug fields + repro-steps HTML.
+                  bug -> BugCandidateRecord -> ADO Bug fields. THREE disjoint
+                         rich-text builders: buildDescriptionHtml,
+                         buildReproStepsHtml, buildSystemInfoHtml — nothing is
+                         repeated between them (product-decisions §5.4).
                          Severity IS written (required, no default); Priority is
                          NEVER written, so the template default stands.
                   fields -> System.*/Microsoft.VSTS.* reference names
@@ -377,6 +406,12 @@ docs/executions/US-<id>/RUN-<nnn>/
                                             status Draft, awaiting human review.
                                             NEVER auto-published to Azure DevOps.
 ```
+
+**`RUN-000` is reserved for non-execution artifacts.** A Bug Candidate created to
+test the publishing workflow — not produced by executing anything — lives in
+`RUN-000` and carries **no** `execution-results.md`. Reserving `000` keeps such an
+artifact from ever colliding with a real `RUN-001`.
+`docs/executions/US-56109/RUN-000/` is the first of these.
 
 **Runs are append-only.** A re-execution after a fix is a **new** `RUN-<NNN>`, never
 an overwrite — run history is what makes a flaky result visible instead of hiding it
@@ -556,6 +591,12 @@ them.
   real case/space-comparison defect touching **WARN-002**, which no source defines and which
   decision D-03 deliberately did **not** settle — D-03 fixed uniqueness *scope*, not its
   *case rule*.
+- **Bug 56329 is a test artifact in a real Azure DevOps project** (US 56109, created
+  2026-08-23 to validate the disjoint field mapping). Whether to close, delete, or
+  keep it is undecided. It also links Test Case **55295**, which belongs to US
+  53717 rather than 56109 — accepted for the test, but wrong for a real Bug.
+- **Bug 55482 still carries the pre-§5.4 layout** (whole candidate in Repro Steps).
+  Azure DevOps is the record for it (§13), so whether to remap it is a human call.
 - **Whether execution evidence stays gitignored** (current behaviour) or gets
   committed for traceability is undecided. Screenshots may contain internal
   product data, so the safe default stands until a human decides.

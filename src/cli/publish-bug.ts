@@ -100,6 +100,11 @@ function validateInput(input: BugInput): string[] {
   }
 
   if (!bug?.title?.trim()) problems.push('bug.title is empty.');
+  // The Description field carries this and nothing else, so an empty value would
+  // publish a Bug whose first-read field is blank.
+  if (!bug?.description?.trim()) {
+    problems.push('bug.description is empty — it is the ONLY content of the Azure DevOps Description field.');
+  }
   if (!bug?.expectedResult?.trim()) problems.push('bug.expectedResult is empty.');
   if (!bug?.actualResult?.trim()) problems.push('bug.actualResult is empty.');
   if (!bug?.steps?.length) problems.push('bug.steps is empty — a Bug nobody can reproduce is not worth filing.');
@@ -178,7 +183,9 @@ async function runVerification(
   log(`  assignedTo    ${actual.assignedToUniqueName ?? '(unassigned)'}`);
   log(`  severity      ${actual.severity ?? '(not set)'}`);
   log(`  priority      ${actual.priority ?? '(not set)'}${expectation.priorityOverride === null ? '  (template default)' : '  (explicit override)'}`);
+  log(`  description   ${actual.hasDescription ? 'present' : 'EMPTY'}`);
   log(`  reproSteps    ${actual.hasReproSteps ? 'present' : 'EMPTY'}`);
+  log(`  systemInfo    ${actual.hasSystemInfo ? 'present' : 'EMPTY'}`);
 
   // A relation naming a file proves a link exists, not that the bytes are
   // retrievable. Only a download proves the attachment really landed.
@@ -298,6 +305,12 @@ async function main(): Promise<number> {
 
   log(`POST         : ${write.createBugUrl()}`);
   log('Content-Type : application/json-patch+json');
+  log();
+  log('Field mapping (Description / Repro Steps / System Info are DISJOINT):');
+  log('  Description : Description');
+  log('  Repro Steps : Preconditions, Steps to Reproduce, Expected Result, Actual Result,');
+  log('                Requirement Reference, Related Test Case');
+  log('  System Info : Environment, Failure Classification, Evidence');
   log();
   log('Field operations:');
   log(JSON.stringify(operations, null, 2));

@@ -42,8 +42,11 @@ wrong guess files someone else's defect under the wrong story.
    (*Step 8*).
 8. **Never publish a credential** — not in a field, not in evidence, not in a file name
    (invariant 7).
-9. **One Bug per invocation.** Never loop.
-10. **Do not commit or push.**
+9. **The Azure DevOps field mapping is fixed and disjoint** — see *Step 5b*. Never dump the whole
+   Bug Candidate into Repro Steps, and never repeat the same content across Description, Repro
+   Steps and System Info.
+10. **One Bug per invocation.** Never loop.
+11. **Do not commit or push.**
 
 ## Step 1 — Read the Bug Candidate
 
@@ -139,6 +142,34 @@ the human explicitly chose that — never as a fallback for silence.
 default. Write a value **only** when the human explicitly requests one for this Bug, and never
 carry a value over from a previous Bug.
 
+## Step 5b — Azure DevOps field mapping (fixed, disjoint)
+
+The Bug Candidate is split across **three** rich-text fields, and every piece of it lands in
+**exactly one** of them (`docs/product-decisions.md` §5.4). This is enforced by the publishing
+code — `buildDescriptionHtml`, `buildReproStepsHtml`, `buildSystemInfoHtml` in `src/ado/bug.ts` —
+not by this instruction. Do not hand-assemble field HTML.
+
+| Azure DevOps field | Carries — and nothing else |
+|---|---|
+| **Title** (`System.Title`) | The Bug title, `[Project][Module][Feature/Page] <Scenario>` |
+| **Description** | Description |
+| **Repro Steps** | Preconditions · Steps to Reproduce · Expected Result · Actual Result · Requirement Reference · Related Test Case |
+| **System Info** | Environment (label **and** host) · Failure Classification · Evidence |
+
+**Do NOT** put the entire Bug Candidate into Repro Steps, and **do not duplicate** content
+between the three fields — three near-identical blocks leave a reviewer unable to tell which is
+authoritative, and they diverge the moment someone edits one.
+
+**Nothing is dropped.** Every Bug Candidate field has one home. Because Description is now the
+sole content of the field Azure DevOps shows first on every board card and query result, an empty
+`bug.description` is **rejected** by the tooling — fill it from the candidate, never invent it.
+
+Evidence is still uploaded as a **real Azure DevOps attachment** (*Step 7*); the Evidence entry in
+System Info is the *note* describing what it shows.
+
+No credential or test secret enters any of the three fields — test data stays **by handle**
+(invariant 7).
+
 ## Step 6 — Build the input and dry run
 
 Write the publishing input described in **`docs/bug-input.schema.md`**, mapping the Bug Candidate
@@ -151,8 +182,13 @@ npm run bug:publish -- <input.json>
 ```
 
 A dry run is the **default** — it writes nothing. It validates the input, performs the
-story-scoped duplicate check, and prints the **exact** `POST` body the real write would send,
-plus the relations and the resolved Severity / assignee / Priority decision.
+story-scoped duplicate check, prints the **field mapping** it applied, and prints the **exact**
+`POST` body the real write would send, plus the relations and the resolved Severity / assignee /
+Priority decision.
+
+Read the printed body and confirm the separation is right: `System.Description` holds only the
+description, `Microsoft.VSTS.TCM.ReproSteps` holds only the repro block, and
+`Microsoft.VSTS.TCM.SystemInfo` holds only environment, classification and evidence.
 
 Handle the outcome:
 
@@ -191,7 +227,9 @@ It **reads the Bug back from Azure DevOps** rather than trusting the create resp
 
 - the Bug **exists**, and is of type **Bug**,
 - **title** matches,
-- **repro steps** are non-empty,
+- **Description**, **Repro Steps** and **System Info** are each non-empty — checked
+  **separately**, because each carries different content and a combined check would hide a whole
+  missing section,
 - **state** is a non-terminal (open) state,
 - **Severity** matches the approved value,
 - **Priority** — a value exists when the template default applies, or matches the explicit

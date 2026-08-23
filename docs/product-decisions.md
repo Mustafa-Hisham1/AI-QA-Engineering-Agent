@@ -114,6 +114,9 @@ to them yet, but the design must remain extensible enough to add them later.
 Title, Description, Steps, Expected Result, Actual Result, Environment,
 Severity, Priority, Evidence, Related Test Case, Related User Story.
 
+How these map onto Azure DevOps Bug fields — Description, Repro Steps and System
+Info, with **no content repeated between them** — is defined in §5.4.
+
 - Bug titles follow the **same convention** as test cases.
 - **AI may propose Severity and Priority; the human has final control.**
 - **Before creating a bug, the agent checks for an existing related or open bug**
@@ -183,6 +186,54 @@ On any mismatch the result is **`PUBLISH_VERIFICATION_FAILED`**, naming each
 failed check with expected vs actual, **preserving the created Bug ID**, and
 **never** creating a second Bug to compensate. This mirrors the Test Case
 publisher's `--verify` (§6.2) and is re-runnable read-only via `--verify-only`.
+
+### 5.4 Azure DevOps Bug field mapping is disjoint (human decision, 2026-08-23)
+
+A Bug Candidate is **split across three Azure DevOps rich-text fields**, and each
+piece of it lands in **exactly one**. The whole candidate is no longer dumped into
+Repro Steps.
+
+| Azure DevOps field | Reference name | Carries — and nothing else |
+|---|---|---|
+| **Description** | `System.Description` | Description |
+| **Repro Steps** | `Microsoft.VSTS.TCM.ReproSteps` | Preconditions · Steps to Reproduce · Expected Result · Actual Result · Requirement Reference · Related Test Case |
+| **System Info** | `Microsoft.VSTS.TCM.SystemInfo` | Environment (label **and** host) · Failure Classification · Evidence |
+
+The Title stays in `System.Title`. Severity, assignee and Priority are unchanged
+by this decision (§5.2), as are the story-scoped duplicate check (§5.1), the human
+approval gate (invariant 2) and post-publish verification (§5.3). Evidence is
+still uploaded as a real Azure DevOps attachment; the Evidence *note* in System
+Info describes it.
+
+*Reasoning:* Azure DevOps shows Description first — on board cards, query results
+and the work item form header — so a Bug whose Description was empty read as
+contentless everywhere except inside the Repro Steps field. Repeating the same
+content in all three fields is worse than the empty Description: three
+near-identical blocks give a reviewer no way to tell which is authoritative, and
+they diverge the first time someone edits one.
+
+**No content is dropped.** Every field of the Bug Candidate has exactly one home,
+which is what makes the split checkable: `buildDescriptionHtml`,
+`buildReproStepsHtml` and `buildSystemInfoHtml` in `src/ado/bug.ts` are the only
+producers, and verification asserts **all three fields are non-empty separately**
+— a single combined check would hide a whole missing section.
+
+**Verified against real Azure DevOps.** Bug **56329** (US 56109, 2026-08-23) was
+published as a deliberate workflow test, reusing Bug 55482's content as dummy data,
+then read back and checked phrase by phrase — 20 separation checks: each of the ten
+Bug Candidate sections appeared in exactly one field, each of the nine headings in
+exactly one field, and Description carried no section heading at all. Record:
+`docs/executions/US-56109/RUN-000/bug-candidates/BUG-CANDIDATE-001.md`.
+
+**Bug 55482 predates this decision** and still carries the old all-in-Repro-Steps
+layout. Azure DevOps is the record for it (§13), so remapping it is a human
+decision, not a silent migration.
+
+**The mapping is enforced by the publishing code, not by convention.**
+`bug.description` is now a *required* input (`publish-bug.ts` rejects an empty
+one) because it is the sole content of the field Azure DevOps surfaces first.
+Credentials and test secrets stay out of all three fields — test data is
+referenced by handle (invariant 7).
 
 ## 6. Review and approval
 

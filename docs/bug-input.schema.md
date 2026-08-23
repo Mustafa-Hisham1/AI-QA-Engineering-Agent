@@ -51,6 +51,29 @@ template to copy from a previous Bug — see *Never inherit* below.
 
 ---
 
+## Where each field lands in Azure DevOps
+
+The mapping is **disjoint** — every field has exactly one home, and nothing is repeated
+(`docs/product-decisions.md` §5.4). Enforced by `src/ado/bug.ts`, not by convention.
+
+| Azure DevOps field | From this input |
+|---|---|
+| **Title** | `bug.title` |
+| **Description** | `bug.description` |
+| **Repro Steps** | `bug.preconditions`, `bug.steps`, `bug.expectedResult`, `bug.actualResult`, `bug.requirementReference`, `bug.relatedTestCaseLocalId` + `bug.relatedTestCaseAdoId` |
+| **System Info** | `bug.environmentLabel` + `bug.environmentHost`, `bug.failureClassification`, `bug.evidenceNote` |
+| **Severity** | `placement.severity` |
+| **Assigned To** | `placement.assignedTo` |
+| **Priority** | `placement.priorityOverride` — **omitted entirely** when null |
+| Area / Iteration | `placement.areaPath`, `placement.iterationPath` |
+| Attachment relation | `attachment.path` (uploaded as a real attachment) |
+| Parent / Related links | `placement.parentUserStoryId`, `bug.relatedTestCaseAdoId` |
+
+`bug.description` is **required and non-empty**: it is the sole content of the Description field,
+which Azure DevOps shows first on every board card and query result.
+
+---
+
 ## Field rules that are not optional
 
 ### `placement.severity` — per Bug, never a default
@@ -98,5 +121,6 @@ stale assignee and severity under a new bug's name.
 | `assignedTo` is present (a name or an explicit `null`) | Forces a deliberate decision instead of an accidental omission |
 | `attachment.path` exists on disk, when given | An attachment that cannot be read must fail before the Bug is created, not after |
 | Title, steps, expected and actual are non-empty | A Bug nobody can reproduce is not worth filing |
+| `description` is non-empty | It is the only content of the Azure DevOps Description field (§5.4); an empty one publishes a Bug that reads as contentless on every board card |
 
 `priorityOverride` is deliberately **not** required — its absence is meaningful.

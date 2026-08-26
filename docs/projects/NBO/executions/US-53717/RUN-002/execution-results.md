@@ -12,7 +12,7 @@
 | Environment label | **STG** (from `APP_ENV`; the label decides the environment, never the hostname) |
 | Target host | `https://ndc-apis-nbo-frontend-dev-epf8graxc0cudjd9.northeurope-01.azurewebsites.net/login` — hostname contains `-dev-` but **is** the team's STG (`docs/product-decisions.md` §12.1) |
 | Application | NDC Back Office — Admin Panel |
-| Test Case source | `docs/test-cases/US-53717/test-cases.md` (**unmodified**) |
+| Test Case source | `docs/projects/NBO/test-cases/US-53717/test-cases.md` (**unmodified**) |
 | Azure DevOps writes | **One Bug created** — #55482, under explicit human authorization on 2026-08-16, *after* this run completed. No Test Run and no Test Result were created; execution itself wrote nothing. |
 | Scope | `TC-53717-002` only — 1 case, as instructed |
 

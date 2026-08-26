@@ -12,7 +12,7 @@
 | Environment | **STG** (see *Environment decision* below) |
 | Target URL | `https://ndc-apis-nbo-frontend-dev-epf8graxc0cudjd9.northeurope-01.azurewebsites.net/login` |
 | Application | NDC Back Office — Admin Panel |
-| Test Case source | `docs/test-cases/US-53717/test-cases.md` (unmodified) |
+| Test Case source | `docs/projects/NBO/test-cases/US-53717/test-cases.md` (unmodified) |
 | Azure DevOps writes | **None.** No Test Run, no Test Result, no Bug. |
 | Scope | 1 of 52 cases — `TC-53717-006` only |
 

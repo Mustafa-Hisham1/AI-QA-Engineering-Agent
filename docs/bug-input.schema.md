@@ -8,7 +8,8 @@ Bug Candidate**, plus the metadata the human approved for that specific Bug.
 template to copy from a previous Bug — see *Never inherit* below.
 
 **Never put a credential in this file.** Test data is referenced by **handle**
-(`ADMIN_VALID`), exactly as in Test Cases and execution artifacts (invariant 7).
+(`{HANDLE}`, as named in the active project's profile), exactly as in Test Cases
+and execution artifacts (invariant 7).
 
 ---
 

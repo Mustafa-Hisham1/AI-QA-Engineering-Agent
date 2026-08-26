@@ -17,7 +17,31 @@ Run, no Test Result, no Bug — and it **never modifies a Test Case**.
 Its job is to report what the application actually did. It is not the judge of whether a
 deviation is a defect, and it never files one on its own.
 
-## Step 0 — Resolve the scope
+## Step 0 — Resolve the active project, then the scope
+
+**Resolve the active project before touching anything.** `<KEY>` below means that project's
+key, and every artifact path in this skill is under `docs/projects/<KEY>/`.
+
+1. A key stated in the request (`--project <KEY>`, or "for <KEY>") wins.
+2. Otherwise `QA_ACTIVE_PROJECT` in the environment.
+3. Otherwise, **only** if exactly one directory under `docs/projects/` has a `profile.md`,
+   use it.
+4. Otherwise **stop and ask the human which project to execute.**
+
+**Never guess the project.** This skill drives a real browser against a real system: a wrong
+project points the run at the wrong application with the wrong credentials. Do not infer the
+project from the story ID — story IDs are unique per Azure DevOps project, not globally.
+
+Then **read `docs/projects/<KEY>/profile.md`** and take from it, never inventing:
+
+- the **allowed environments** and the variable holding each target URL
+- the **environment label variable** the allow-list is checked against
+- the **test-data handle names** this project defines
+- the project's **terminology** and modules
+
+If the profile marks a needed value `TBD`, that value is **not configured**: stop and say so.
+**Never borrow another project's handles, hosts, or credentials** — they name that project's
+systems, and using one would act on the wrong environment.
 
 The argument is `$ARGUMENTS`. Accept either form:
 
@@ -55,7 +79,7 @@ Test Cases are independently executable (`docs/product-decisions.md` §4), so an
 ## Step 1 — Load the Test Cases
 
 ```
-docs/test-cases/US-<ID>/test-cases.md
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md
 ```
 
 - **Missing** → stop. Report that US <ID> has no Test Case artifact and that `write-test-cases`
@@ -78,28 +102,34 @@ Report the counts before touching a browser: in scope, executable, skipped, refu
 
 ## Step 2 — Validate the environment
 
-Read the environment label and target URL from `.env` — the only place they live (invariant 7).
+Read the environment label and target URL from `.env` — the only place their **values** live
+(invariant 7). Which variables to read, and which labels are allowed, come from the active
+project's `profile.md`.
 
-1. **Read the explicit environment label** (e.g. `APP_ENV`). This value, not the URL, decides
-   what environment this is.
-2. **If the label is `PROD`, or missing, or not on the allow-list → stop.** Execute nothing.
-   **STG is the only allowed environment today** (invariant 5).
-3. **If the label is absent but a URL is present → stop.** Do not infer. Ask the human to set the
+1. **Read the explicit environment label** from the variable the profile names (e.g. `APP_ENV`).
+   This value, not the URL, decides what environment this is.
+2. **If the label is `PROD` → stop.** No exception, no flag, no override. PROD is blocked by the
+   shared method (invariant 5) and **no project profile can unblock it.**
+3. **If the label is missing, or not on the active project's allow-list → stop.** Execute
+   nothing. A label allowed for one project says nothing about another.
+4. **If the label is absent but a URL is present → stop.** Do not infer. Ask the human to set the
    label explicitly.
-4. **Record the label AND the target host verbatim** in the artifact. They are recorded together
-   because they can disagree — this project's STG host is named `-dev-`
-   (`docs/product-decisions.md` §12.1). A future reader must be able to see exactly which machine
-   produced a result.
-5. **Confirm the target is reachable** before running the suite. If it is not, every case is
+5. **Never infer the environment from the hostname.** A host named `-dev-`, `-stg-` or anything
+   else carries **no** authority in either direction (`docs/product-decisions.md` §12.1). Only
+   the explicit label counts.
+6. **Record the label AND the target host verbatim** in the artifact. They are recorded together
+   because they can legitimately disagree. A future reader must be able to see exactly which
+   machine produced a result.
+7. **Confirm the target is reachable** before running the suite. If it is not, every case is
    **BLOCKED / `ENVIRONMENT_ISSUE`** — not FAIL.
 
 ## Step 3 — Create the run
 
-Runs are append-only. Find the highest existing `RUN-NNN` under `docs/executions/US-<ID>/` and
+Runs are append-only. Find the highest existing `RUN-NNN` under `docs/projects/<KEY>/executions/US-<ID>/` and
 create the next one:
 
 ```
-docs/executions/US-<ID>/RUN-<NNN>/
+docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/
   execution-results.md
   evidence/
 ```
@@ -111,15 +141,20 @@ history is what makes a flaky result visible.
 
 ## Step 4 — Resolve test data handles
 
-Test Cases reference accounts by **handle** (`ADMIN_VALID`, `ADMIN_LOCKOUT`, …), never by value.
+Test Cases reference accounts and data by **handle**, never by value. **The handle vocabulary is
+project knowledge** — it is defined in the active project's `profile.md`, not in this skill.
 
 For each handle a case needs:
 
-- **Resolve it from `.env`** at execution time, into memory only.
+- **Check it against the active project's profile.** A handle the profile does not define is not
+  a handle this project has: report it rather than resolving something that merely looks similar.
+- **Resolve its value from `.env`** at execution time, into memory only.
 - **Missing or unset** → that case is **BLOCKED / `TEST_DATA_ISSUE`** with the missing handle
   named. **Missing test data is never a product failure**, and never a FAIL.
-- **Refer to the handle everywhere.** The artifact, the response and any bug candidate say
-  `ADMIN_VALID` — never the username, never the password.
+- **Refer to the handle everywhere.** The artifact, the response and any bug candidate name the
+  handle — never the username, never the password.
+- **Never substitute another project's handle**, even one with the same name. It names a
+  different account on a different system.
 
 **Handles that consume state** — lockout accounts, single-use data — are destructive. Confirm
 with the human before executing cases that burn them, and never reuse such an account across
@@ -223,9 +258,10 @@ when genuinely torn, prefer the classification that keeps a human looking at it.
 ## Step 9 — Persist the execution result
 
 Write `execution-results.md` in the run directory, following the structure the canary established
-(`docs/executions/US-53717/RUN-001/execution-results.md`). Keep it **structured and machine-
-readable enough for a future Azure DevOps Test Run publisher to consume** — that publisher is a
-separate, not-yet-built, separately-approved capability.
+— for a worked example, read the most recent `execution-results.md` under the **active
+project's** `docs/projects/<KEY>/executions/`. Keep it **structured and machine-readable enough
+for a future Azure DevOps Test Run publisher to consume** — that publisher is a separate,
+not-yet-built, separately-approved capability.
 
 Record:
 
@@ -271,7 +307,7 @@ raising a new one. **The human decides.**
 Write a **local Bug Candidate** under the run directory:
 
 ```
-docs/executions/US-<ID>/RUN-<NNN>/bug-candidates/BUG-CANDIDATE-<n>.md
+docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/bug-candidates/BUG-CANDIDATE-<n>.md
 ```
 
 Using the project bug structure (`docs/product-decisions.md` §5), containing:

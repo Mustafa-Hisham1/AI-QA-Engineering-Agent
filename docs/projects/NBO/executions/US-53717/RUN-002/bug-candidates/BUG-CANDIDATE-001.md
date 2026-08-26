@@ -106,7 +106,7 @@ These are **proposals only.** Severity and Priority are the human's call
 
 ## Evidence
 
-Under `docs/executions/US-53717/RUN-002/evidence/` — **gitignored, local only**.
+Under `docs/projects/NBO/executions/US-53717/RUN-002/evidence/` — **gitignored, local only**.
 No credentials appear in any file; this case entered none.
 
 | File | Shows |

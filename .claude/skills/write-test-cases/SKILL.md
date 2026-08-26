@@ -1,6 +1,6 @@
 ---
 name: write-test-cases
-description: Generate Test Cases for an analyzed User Story from its local Requirement Analysis and confirmed decisions, then AI self-review them into docs/test-cases/US-<ID>/test-cases.md. Use when asked to write, generate, or regenerate the test cases for a User Story by ID. Takes the User Story ID as its argument.
+description: Generate Test Cases for an analyzed User Story from its local Requirement Analysis and confirmed decisions, then AI self-review them into docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md. Use when asked to write, generate, or regenerate the test cases for a User Story by ID. Takes the User Story ID as its argument.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git diff:*), Bash(git status:*), Bash(grep:*)
 ---
 
@@ -12,7 +12,30 @@ Analysis, confirmed decisions and source snapshot **already in this repository**
 This skill **reads local files and writes local files only.** It never modifies Azure DevOps,
 never creates Test Cases or Bugs in Azure DevOps, never approves anything, and never commits.
 
-## Step 0 — Resolve the User Story ID
+## Step 0 — Resolve the active project, then the User Story ID
+
+**Resolve the active project before reading anything.** `<KEY>` below means that project's
+key, and every artifact path in this skill is under `docs/projects/<KEY>/`.
+
+1. A key stated in the request (`--project <KEY>`, or "for <KEY>") wins.
+2. Otherwise `QA_ACTIVE_PROJECT` in the environment.
+3. Otherwise, **only** if exactly one directory under `docs/projects/` has a `profile.md`,
+   use it.
+4. Otherwise **stop and ask the human which project this story belongs to.**
+
+**Never guess the project.** Do not infer it from the story ID — story IDs are unique per
+Azure DevOps project, not globally. Do not search every project for a matching artifact and
+use whichever turned up.
+
+Then **read `docs/projects/<KEY>/profile.md`**. Take from it, and never invent:
+
+- the **title project token** — the `[Project]` slot of every generated title
+- the **module and feature/page vocabulary** in scope
+- the **test-data handle names** this project defines
+- the project's **terminology**
+
+If the profile marks a value `TBD`, that value is **not configured**: stop and ask rather than
+substituting another project's.
 
 The ID is `$ARGUMENTS`. Below, `<ID>` means that value.
 
@@ -34,10 +57,10 @@ If no ID was supplied, ask for one and stop. Do not guess an ID.
 ## Step 1 — Locate the inputs
 
 ```
-docs/requirements/US-<ID>/requirement-analysis.md    the analysis      (required)
-docs/requirements/US-<ID>/decisions.md               human decisions   (read if present)
-docs/requirements/US-<ID>/source/                    verbatim snapshot (read if present)
-docs/test-cases/US-<ID>/test-cases.md                the output
+docs/projects/<KEY>/requirements/US-<ID>/requirement-analysis.md    the analysis      (required)
+docs/projects/<KEY>/requirements/US-<ID>/decisions.md               human decisions   (read if present)
+docs/projects/<KEY>/requirements/US-<ID>/source/                    verbatim snapshot (read if present)
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md                the output
 ```
 
 - **No `requirement-analysis.md`** → **stop.** Report that US <ID> has not been analysed and that
@@ -51,12 +74,12 @@ docs/test-cases/US-<ID>/test-cases.md                the output
 
 Read, in this order:
 
-1. `docs/requirements/US-<ID>/decisions.md` — **human authority.** It outranks the analysis where
+1. `docs/projects/<KEY>/requirements/US-<ID>/decisions.md` — **human authority.** It outranks the analysis where
    they differ. Every decision it records governs the expected results.
-2. `docs/requirements/US-<ID>/requirement-analysis.md` — in full, including the coverage map, the
+2. `docs/projects/<KEY>/requirements/US-<ID>/requirement-analysis.md` — in full, including the coverage map, the
    open questions (both open and closed), the message inventory, and the test-data
    prerequisites.
-3. `docs/requirements/US-<ID>/source/` — the verbatim requirement text, for exact message strings
+3. `docs/projects/<KEY>/requirements/US-<ID>/source/` — the verbatim requirement text, for exact message strings
    and acceptance criteria wording. **Quote message text only from here or from the analysis's
    exact-text table.**
 4. `docs/product-decisions.md` §3, §4, §6, §6.1, §8, §15 — the mandatory test case fields, the
@@ -64,7 +87,7 @@ Read, in this order:
 
 ## Step 3 — Decide whether work is needed
 
-If `docs/test-cases/US-<ID>/test-cases.md` already exists, compare its recorded **content
+If `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md` already exists, compare its recorded **content
 fingerprint** with the one in the analysis's provenance table:
 
 - **Fingerprints match and no decision is newer than the artifact** → do not regenerate. Report
@@ -174,7 +197,7 @@ Rules that decide whether the set is trustworthy:
 
 ## Step 7 — Write the artifact
 
-Write `docs/test-cases/US-<ID>/test-cases.md`, structured so it stays editable and so the
+Write `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md`, structured so it stays editable and so the
 publishing step can consume it case by case:
 
 1. **Provenance header** — work item ID, analysis/decisions/source paths, the revision and the

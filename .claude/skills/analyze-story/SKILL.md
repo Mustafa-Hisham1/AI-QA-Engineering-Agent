@@ -1,6 +1,6 @@
 ---
 name: analyze-story
-description: Read an Azure DevOps User Story with its .md attachments and persist a Requirement Analysis under docs/requirements/US-<ID>/. Use when asked to analyze, re-analyze, or refresh the requirements of a User Story by ID. Takes the User Story ID as its argument.
+description: Read an Azure DevOps User Story with its .md attachments and persist a Requirement Analysis under docs/projects/<KEY>/requirements/US-<ID>/. Use when asked to analyze, re-analyze, or refresh the requirements of a User Story by ID. Takes the User Story ID as its argument.
 allowed-tools: Bash(npm run story:read:*), Bash(git diff:*), Bash(git status:*), Read, Write, Edit, Glob, Grep
 ---
 
@@ -11,7 +11,23 @@ Produce or update the persistent **Requirement Analysis** for a User Story.
 This skill **reads** Azure DevOps and **writes local files only**. It never modifies Azure
 DevOps, never creates Bugs, never generates Test Cases, and never commits.
 
-## Step 0 — Resolve the User Story ID
+## Step 0 — Resolve the active project, then the User Story ID
+
+**Resolve the active project before reading anything.** `<KEY>` below means that project's
+key, and every artifact path in this skill is under `docs/projects/<KEY>/`.
+
+1. A key stated in the request (`--project <KEY>`, or "for <KEY>") wins.
+2. Otherwise `QA_ACTIVE_PROJECT` in the environment.
+3. Otherwise, **only** if exactly one directory under `docs/projects/` has a `profile.md`,
+   use it.
+4. Otherwise **stop and ask the human which project this story belongs to.**
+
+**Never guess the project.** Do not infer it from the story ID — story IDs are unique per
+Azure DevOps project, not globally. Do not search every project for a matching artifact and
+use whichever turned up. Do not default to whichever project came first.
+
+Then **read `docs/projects/<KEY>/profile.md`** and take every project-specific value from it —
+terminology, modules, title token. Read `docs/projects/<KEY>/decisions.md` if it exists.
 
 The ID is `$ARGUMENTS`. Below, `<ID>` means that value.
 
@@ -55,9 +71,9 @@ Record from the output: title, work item type, state, project, area path, iterat
 Artifact paths for this story:
 
 ```
-docs/requirements/US-<ID>/requirement-analysis.md    the analysis (agent-generated)
-docs/requirements/US-<ID>/decisions.md               confirmed human decisions (human authority)
-docs/requirements/US-<ID>/source/                    verbatim .md attachment snapshot
+docs/projects/<KEY>/requirements/US-<ID>/requirement-analysis.md    the analysis (agent-generated)
+docs/projects/<KEY>/requirements/US-<ID>/decisions.md               confirmed human decisions (human authority)
+docs/projects/<KEY>/requirements/US-<ID>/source/                    verbatim .md attachment snapshot
 ```
 
 If `requirement-analysis.md` already exists, read the fingerprint in its provenance table and
@@ -79,7 +95,7 @@ so a reassignment or a tag edit does not trigger re-analysis.
 ## Step 3 — Read the full content and update the snapshot
 
 ```bash
-npm run story:read -- <ID> --save-source docs/requirements/US-<ID>/source
+npm run story:read -- <ID> --save-source docs/projects/<KEY>/requirements/US-<ID>/source
 ```
 
 Read the complete output: description, acceptance criteria, additional fields, and the entire
@@ -89,14 +105,14 @@ truth is captured in one read.
 If a snapshot already existed, see exactly what changed:
 
 ```bash
-git diff -- docs/requirements/US-<ID>/source
+git diff -- docs/projects/<KEY>/requirements/US-<ID>/source
 ```
 
 For an update, that diff — not the whole document — is what drives the impact analysis.
 
 ## Step 4 — Load confirmed decisions
 
-Read `docs/requirements/US-<ID>/decisions.md` if it exists. It holds decisions the human has
+Read `docs/projects/<KEY>/requirements/US-<ID>/decisions.md` if it exists. It holds decisions the human has
 explicitly confirmed, and it is **human authority**: it outranks your own reading of the
 requirement and must survive every regeneration of the analysis.
 
@@ -150,7 +166,7 @@ Rules that keep the analysis trustworthy:
 
 ## Step 6 — Write or update the artifact
 
-Write `docs/requirements/US-<ID>/requirement-analysis.md`. Every statement carries exactly one tag:
+Write `docs/projects/<KEY>/requirements/US-<ID>/requirement-analysis.md`. Every statement carries exactly one tag:
 
 | Tag | Meaning |
 |---|---|

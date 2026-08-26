@@ -27,7 +27,7 @@
 | Priority | 2 |
 | **Content fingerprint** | `e5dceedf3d5acb343458fad92234188c7c71b1d8def41d88a736d02641bb14b6` |
 | Read at | 2026-08-18 |
-| Local snapshot | `docs/requirements/US-52860/source/` |
+| Local snapshot | `docs/projects/NBO/requirements/US-52860/source/` |
 | Work item URL | https://dev.azure.com/tilde-technology/b1763c9b-14e8-46ae-9683-8947457e8c81/_workitems/edit/52860 |
 
 ### Attachments read
@@ -425,7 +425,7 @@ no assertion can be written.
 
 ## 10. Confirmed decisions
 
-`docs/requirements/US-52860/decisions.md` did not exist at the start of this analysis.
+`docs/projects/NBO/requirements/US-52860/decisions.md` did not exist at the start of this analysis.
 The following was stated by the human in this session and is recorded there.
 
 | ID | Decision | Closes |

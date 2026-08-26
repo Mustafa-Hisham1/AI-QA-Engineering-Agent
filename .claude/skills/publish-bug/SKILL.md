@@ -17,10 +17,27 @@ actually correct after the fact.
 It does **not** execute Test Cases, does **not** classify failures, and does **not** decide
 whether something is a defect. That happened in `execute-test-cases`, and the human reviewed it.
 
-## Step 0 — Resolve the Bug Candidate
+## Step 0 — Resolve the active project, then the Bug Candidate
+
+**Resolve the active project first.** `<KEY>` below means that project's key.
+
+1. A key stated in the request, **or the project directory the Bug Candidate path itself lies
+   under** — a path like `docs/projects/<KEY>/executions/…` names its project unambiguously.
+2. Otherwise `QA_ACTIVE_PROJECT` in the environment.
+3. Otherwise, **only** if exactly one directory under `docs/projects/` has a `profile.md`,
+   use it.
+4. Otherwise **stop and ask the human which project this Bug belongs to.**
+
+**Never guess the project.** This skill creates a real Bug: a wrong project files a defect
+against the wrong client's board. Do not infer it from the story ID, and do not search every
+project's `bug-candidates/` for a similarly-named file — if two projects hold a candidate with
+the same name, **stop and ask**.
+
+Then **read `docs/projects/<KEY>/profile.md`** for the project's environment labels and
+terminology.
 
 The argument is `$ARGUMENTS` — a path to a Bug Candidate file, or enough context to find one
-under `docs/executions/US-<ID>/RUN-<NNN>/bug-candidates/`.
+under `docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/bug-candidates/`.
 
 If it is missing or ambiguous, **ask and stop.** Never guess which Bug is being published — a
 wrong guess files someone else's defect under the wrong story.

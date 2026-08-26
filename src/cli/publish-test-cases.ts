@@ -28,6 +28,7 @@ import { AdoReadClient, type ChildWorkItem, type ParentContext } from '../ado/cl
 import { loadConfig, loadWriteConfig } from '../ado/config.ts';
 import { isAdoError, redact } from '../ado/errors.ts';
 import { AdoWriteClient } from '../ado/write-client.ts';
+import { ProjectError, describeActiveProject, resolveActiveProject } from '../projects/active-project.ts';
 import { ArtifactError, artifactPathFor, parseArtifact, recordPublishedId } from '../testcases/artifact.ts';
 import type { TestCaseRecord } from '../testcases/model.ts';
 
@@ -44,6 +45,8 @@ interface Args {
   readonly confirm: boolean;
   readonly verifyOnly: boolean;
   readonly limit: number | null;
+  /** Active project key from --project, or null to resolve it another way. */
+  readonly project: string | null;
 }
 
 function parseArgs(argv: readonly string[]): Args {
@@ -51,12 +54,15 @@ function parseArgs(argv: readonly string[]): Args {
   let confirm = false;
   let verifyOnly = false;
   let limit: number | null = null;
+  let project: string | null = null;
 
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === '--confirm') confirm = true;
     else if (arg === '--verify') verifyOnly = true;
-    else if (arg === '--limit') {
+    else if (arg === '--project') {
+      project = argv[++index] ?? null;
+    } else if (arg === '--limit') {
       const parsed = Number(argv[++index]);
       if (Number.isInteger(parsed) && parsed > 0) limit = parsed;
     } else if (arg !== undefined && !arg.startsWith('--')) {
@@ -65,14 +71,16 @@ function parseArgs(argv: readonly string[]): Args {
     }
   }
 
-  return { id, confirm, verifyOnly, limit };
+  return { id, confirm, verifyOnly, limit, project };
 }
 
 function printUsage(): void {
   log();
-  log('Usage: node src/cli/publish-test-cases.ts <user-story-id> [--confirm] [--verify] [--limit <n>]');
+  log('Usage: node src/cli/publish-test-cases.ts <user-story-id> [--project <KEY>] [--confirm] [--verify] [--limit <n>]');
   log();
   log('  <user-story-id>   User Story whose approved Test Cases are published, e.g. 53717');
+  log('  --project <KEY>   Active project: a directory name under docs/projects.');
+  log('                    Required when more than one project profile exists.');
   log('  (no flag)         DRY RUN — shows the exact operations and writes nothing');
   log('  --confirm         Perform the writes. Requires explicit human approval first.');
   log('  --verify          Verify published children against the artifact; writes nothing');
@@ -157,7 +165,11 @@ async function main(): Promise<number> {
   }
 
   const storyId = args.id;
-  const artifactPath = artifactPathFor(storyId);
+
+  // Resolve the active project BEFORE anything is read or written. An ambiguous
+  // project stops the run rather than defaulting to one (see active-project.ts).
+  const project = resolveActiveProject(args.project);
+  const artifactPath = artifactPathFor(project.root, storyId);
 
   // ---- Load the local artifact (no network yet) --------------------------
   const artifact = parseArtifact(artifactPath, storyId);
@@ -167,6 +179,7 @@ async function main(): Promise<number> {
   log(`Publish Test Cases — User Story ${storyId}`);
   log('='.repeat(78));
   log();
+  log(`Project           ${describeActiveProject(project)}`);
   log(`Artifact          ${artifactPath}`);
   log(`Test cases parsed ${artifact.testCases.length}`);
   if (artifact.contentFingerprint) {
@@ -407,7 +420,11 @@ try {
 } catch (error) {
   fail();
 
-  if (error instanceof ArtifactError) {
+  if (error instanceof ProjectError) {
+    fail(`Active project problem: ${error.message}`);
+    for (const detail of error.details) fail(`  ${detail}`);
+    process.exitCode = 2;
+  } else if (error instanceof ArtifactError) {
     fail(`Artifact problem: ${error.message}`);
     for (const detail of error.details) fail(`  ${detail}`);
     process.exitCode = 2;

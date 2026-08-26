@@ -1,6 +1,6 @@
 /**
  * Reads and updates the local Test Case artifact
- * (`docs/test-cases/US-<id>/test-cases.md`).
+ * (`docs/projects/<KEY>/test-cases/US-<id>/test-cases.md`).
  *
  * The artifact is the approved, human-reviewed source. This module therefore
  * treats it as authoritative and STRICT: anything it cannot parse confidently is
@@ -25,8 +25,16 @@ export class ArtifactError extends Error {
   }
 }
 
-export function artifactPathFor(storyId: number): string {
-  return `docs/test-cases/US-${storyId}/test-cases.md`;
+/**
+ * Path to a story's Test Case artifact within its owning project.
+ *
+ * `projectRoot` is the active project's directory (`docs/projects/<KEY>`), so
+ * two projects can never resolve to the same artifact file. Resolution of which
+ * project is active lives in `src/projects/active-project.ts`; this module only
+ * builds the path it is given.
+ */
+export function artifactPathFor(projectRoot: string, storyId: number): string {
+  return `${projectRoot}/test-cases/US-${storyId}/test-cases.md`;
 }
 
 // ---------------------------------------------------------------------------
@@ -55,7 +63,7 @@ const METADATA_KEYS = {
   'Review/Lifecycle Status': 'status',
 } as const;
 
-/** Splits `NBO / Authentication / Login - Agent Portal` into its three fields. */
+/** Splits `{PROJECT} / {MODULE} / {FEATURE}` into its three fields. */
 function splitScope(value: string, localId: string): { project: string; module: string; featurePage: string } {
   const parts = value.split('/').map((part) => part.trim());
   if (parts.length !== 3 || parts.some((part) => !part)) {

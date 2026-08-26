@@ -76,15 +76,20 @@ Every test case contains:
 **Title convention (mandatory):**
 
 ```
-[Project][Module][Feature/Page] <Test Scenario>
+[{PROJECT}][{MODULE}][{FEATURE}] <Test Scenario>
 ```
 
 Example:
 
 ```
-[NBO][Country][Add Country] Verify Country is created successfully when valid
-data is entered and Submit is clicked
+[{PROJECT}][{MODULE}][{FEATURE}] Verify the record is created successfully when
+valid data is entered and Submit is clicked
 ```
+
+`{PROJECT}` is the **title project token** taken from the active project's
+`docs/projects/<KEY>/profile.md`; `{MODULE}` and `{FEATURE}` come from that
+project's own vocabulary. Never invent a token, and never borrow another
+project's.
 
 The Feature/Page slot covers both pages and functional topics (e.g. a page name
 or a validation concern). It is a human label; grouping and filtering rely on the
@@ -99,9 +104,9 @@ to them yet, but the design must remain extensible enough to add them later.
 
 - Scenario-specific test data is stored **inside** the test case: valid values,
   invalid values, numbers, special characters, spaces, empty values, boundary
-  values, duplicates, emojis, and anything else the scenario needs. For example:
-  a valid Country Name, a numeric-only Country Name, special characters, a
-  duplicate Country Code, invalid values.
+  values, duplicates, emojis, and anything else the scenario needs. For example,
+  for a named reference-data record: a valid name, a numeric-only name, special
+  characters, a duplicate code, invalid values.
 - A test case should be self-contained enough to execute its own scenario.
 - **Environment-wide configuration such as base URLs belongs in environment
   configuration, not in test data.** Credentials never appear in test cases.
@@ -133,11 +138,8 @@ Cases** — the story under which those Test Cases were generated and published.
 The agent does **not** search other User Stories, other parents, other area paths,
 or the project at large, and does not investigate other parents' history.
 
-*Context:* this was decided when Bug 55482 was created from US 53717. A
-project-wide search had surfaced Bug **43084** *"Missing 'Remember Me' Checkbox in
-Design and Implementation"* — Closed as *Fixed and verified*, under a different
-parent (33633) and area path (`NDCIntegrations\Integration - 2`). The human ruled
-it **out of scope for this workflow**, and the Bug was created under US 53717.
+*Context:* the case that produced this rule is recorded with the project it came
+from — see `docs/projects/NBO/decisions.md`.
 
 *Known trade-off, accepted deliberately:* a narrow scope cannot see a matching Bug
 filed under a different story, so a cross-story duplicate is possible. That is
@@ -168,8 +170,8 @@ under a new bug's name — wrong in a way nobody reviews twice, because both fie
 look deliberately filled. The tooling therefore **refuses** an input whose
 assignee is absent, rather than defaulting it.
 
-Bug 55482's `4 - Low` / Zeyad Nasser assignment is **historical data about one
-Bug** and must never become a default.
+The severity and assignee on any already-published Bug are **historical data
+about that one Bug** and must never become a default for another.
 
 ### 5.3 A publish is not finished at a Bug ID (decided 2026-08-17)
 
@@ -218,16 +220,9 @@ which is what makes the split checkable: `buildDescriptionHtml`,
 producers, and verification asserts **all three fields are non-empty separately**
 — a single combined check would hide a whole missing section.
 
-**Verified against real Azure DevOps.** Bug **56329** (US 56109, 2026-08-23) was
-published as a deliberate workflow test, reusing Bug 55482's content as dummy data,
-then read back and checked phrase by phrase — 20 separation checks: each of the ten
-Bug Candidate sections appeared in exactly one field, each of the nine headings in
-exactly one field, and Description carried no section heading at all. Record:
-`docs/executions/US-56109/RUN-000/bug-candidates/BUG-CANDIDATE-001.md`.
-
-**Bug 55482 predates this decision** and still carries the old all-in-Repro-Steps
-layout. Azure DevOps is the record for it (§13), so remapping it is a human
-decision, not a silent migration.
+**Verified against real Azure DevOps.** The verification run, and any Bug that
+predates this mapping, are recorded with the project they belong to — see
+`docs/projects/NBO/decisions.md`.
 
 **The mapping is enforced by the publishing code, not by convention.**
 `bug.description` is now a *required* input (`publish-bug.ts` rejects an empty
@@ -265,7 +260,7 @@ irreversible action actually happens.
 ## 6.1 Review/Lifecycle Status — allowed values
 
 Decided 2026-08-13, when the first test case artifact was implemented
-(`docs/test-cases/US-53717/test-cases.md`). §3 left the state names undefined
+(`docs/projects/<KEY>/test-cases/US-<id>/test-cases.md`). §3 left the state names undefined
 until an artifact format existed; this closes that item.
 
 | Status | Meaning | Who may set it |
@@ -287,7 +282,7 @@ The same vocabulary applies to bug candidates when that artifact is built.
 
 ## 6.2 Publishing Test Cases to Azure DevOps
 
-Decided and implemented 2026-08-13, when US 53717's 52 approved cases were published.
+Decided and implemented 2026-08-13, when the first story's approved cases were published.
 
 - **Test Cases are published as `Test Case` work items linked to the User Story
   with a parent-child hierarchy relation** (`System.LinkTypes.Hierarchy-Reverse`
@@ -339,10 +334,11 @@ does on its own.
   outcome, screenshots on failure, and performs failure analysis.
 - **Test cases must be independently executable** (see §4).
 
-**Login:** STG uses a normal username/password flow. The agent enters the
-configured username and password and clicks Login. There is currently no MFA,
-SSO redirect, or CAPTCHA blocking this. Credentials come from environment
-configuration, never from test case definitions.
+**Login:** how the application under test authenticates — the flow, and whether
+MFA, SSO or CAPTCHA is in play — is **project knowledge**, recorded in that
+project's `docs/projects/<KEY>/profile.md` and `decisions.md`. What is fixed
+here: credentials come from environment configuration, **never** from test case
+definitions, and are referenced by handle.
 
 **Browser technology:** Playwright MCP for AI-driven exploration and execution;
 deterministic Playwright for repeatable automation execution. These are
@@ -418,7 +414,7 @@ Learned by executing a real login case, not by design review.
 ### 10.2 Execution runs are append-only (decided 2026-08-16)
 
 Every execution gets a fresh `RUN-<NNN>` directory under
-`docs/executions/US-<id>/`. **A previous run is never overwritten**, including a
+`docs/projects/<KEY>/executions/US-<id>/`. **A previous run is never overwritten**, including a
 re-run of the same case after a fix. Overwriting would erase the evidence that a
 result is intermittent — the single most valuable signal a run history carries.
 
@@ -461,38 +457,105 @@ User Story -> Requirement -> Test Case -> Execution -> Evidence -> Bug
 
 - **Environment configuration is external to test cases** (base URL per
   environment). The human selects the target environment per run, e.g. "run the
-  Country module on STG".
+  {MODULE} module on {ENVIRONMENT}".
 - **Environments are allow-listed and PROD is blocked by default.** The agent may
-  execute only against explicitly allowed environments. **STG is the only allowed
-  environment today.** UAT and PROD must be explicitly configured and selected
-  when introduced, and **any PROD execution or PROD write requires explicit human
-  confirmation.**
+  execute only against environments explicitly allowed **by the active project's
+  profile**. An environment not on that project's allow-list must never be used,
+  and **any PROD execution or PROD write requires explicit human confirmation.**
+  A project profile may add an allowed non-PROD environment; it **cannot**
+  unblock PROD.
 - **Credentials are never stored in test case files.** They live in a local
   `.env`, gitignored, with `.env.example` documenting variable names only.
 - `.gitignore` protects secrets only if it is configured before secrets exist —
   it was created first, before any `.env` was written.
 
-### 12.1 The STG host is named `-dev-` (human decision, 2026-08-16)
+### 12.1 Environment labels are never inferred from a hostname
 
-The Admin Panel environment the team uses as **STG** for this project has a
-hostname containing **`-dev-`**:
+A hostname carries **no authority** over which environment it is. A host may be
+named `-dev-` and be the team's STG target; a host named `-stg-` may be
+something else entirely. The agent decides the environment from the **explicit
+label** (`APP_ENV`) checked against the project's allow-list, and never from the
+name of the machine.
 
-```
-https://ndc-apis-nbo-frontend-dev-…northeurope-01.azurewebsites.net
-```
+The agent must not treat a host as allowed because its name looks familiar, and
+must not treat a host as disallowed because its name says dev.
 
-The human confirmed explicitly that this host **is** the intended STG target for
-execution, and that the `-dev-` in the name is naming only.
+**Every execution artifact records the environment label AND the target host
+verbatim**, because they can legitimately disagree and a later reader must be
+able to see exactly which machine produced a result.
 
-**The environment is STG by human decision, never by inference from the
-hostname.** `APP_ENV=STG` in `.env` is what the allow-list checks; the hostname
-carries no authority. The agent must not treat a `-dev-`, `-uat-` or any other
-host as allowed because a name looks familiar, and must not treat this host as
-disallowed because its name says dev.
+*Which host is which environment is project knowledge*, recorded in that
+project's `docs/projects/<KEY>/profile.md` and `decisions.md` — see
+`docs/projects/NBO/decisions.md` §12.1 for the decision that produced this rule.
 
-**Every execution artifact records the target host verbatim** alongside the
-environment label, so no later reader can mistake which machine produced a
-result. Recorded in `docs/executions/US-53717/RUN-001/execution-results.md`.
+### 12.2 Method and project knowledge are separate (decided 2026-08-25)
+
+This repository serves **more than one project**. Two kinds of content were
+previously interleaved in the same files, and are now separated:
+
+| Kind | Lives in | Applies to |
+|---|---|---|
+| **Method** — invariants, approval gates, the PROD block, evidence rules, execution statuses, failure classification, artifact formats | `CLAUDE.md`, this file, `.claude/skills/**` | **Every** project |
+| **Project knowledge** — environments and hosts, test-data handles, modules, terminology, title token, engagement state, per-story decisions | `docs/projects/<KEY>/` | **One** project |
+
+**A project profile may narrow what the agent does; it may never widen it.** It
+can decline an environment the method allows, but it cannot enable PROD, waive an
+approval gate, permit a write the method forbids, or relax an evidence or
+credential rule. Every safety control is defined at the method layer precisely so
+that no project file can turn it off.
+
+*Reasoning:* the two were fused, so onboarding a second project meant diffing a
+long decision record and guessing which paragraphs were about the first client.
+Worse, a rule and an example of it read the same on the page — making it easy to
+"generalise" a real safety rule while copying a project fact into the method.
+
+### 12.3 The active project is explicit, never inferred (decided 2026-08-25)
+
+With several projects in one repository, **every command and skill establishes
+the active project before reading or writing anything.**
+
+Resolution order, most explicit first:
+
+1. An explicitly supplied key — `--project <KEY>`, or the key a skill was given.
+2. `QA_ACTIVE_PROJECT` in the environment.
+3. The sole project, **only** when exactly one profile exists.
+
+**When several projects exist and none is named, the agent stops and asks.** It
+must never pick one, never infer the project from a story ID, and never search
+every project for a matching file and use whichever it found. Implemented in
+`src/projects/active-project.ts`; a failure surfaces as `ProjectError`.
+
+*Reasoning:* a wrong guess is silent in both directions — it runs an execution
+against the wrong application, or publishes one project's Test Cases onto another
+project's board. Story IDs are unique per Azure DevOps project, not globally, so
+an ID is not evidence of ownership. Being asked once is far cheaper than either.
+
+The single-project convenience is deliberate and self-limiting: it applies only
+while the repository holds one profile, and turns into an error the moment a
+second appears.
+
+### 12.4 Profile drift is caught by a test, not by discipline (decided 2026-08-25)
+
+A project's `profile.md` declares its test-data handles; its Test Cases
+reference them. Nothing structural keeps the two in step, so they drift — a new
+case introduces a handle nobody added to the profile.
+
+**`tests/profile-drift.test.ts` fails the build when a Test Case uses a handle
+its project's profile does not declare.** It is project-agnostic: it discovers
+whatever projects exist and asserts nothing about any particular one.
+
+The check is deliberately **one-directional**:
+
+- **Used but not declared → FAIL.** Execution would reach for test data the
+  project never defined, and the gap would otherwise surface only at execution
+  time as a `BLOCKED` run — after a browser had already been started against a
+  live environment.
+- **Declared but not used → reported, never failed.** A profile legitimately
+  describes test data before any case consumes it.
+
+**The test never invents a handle to make itself pass**, and neither may the
+agent. Only a human knows whether the profile or the Test Case is the side that
+is wrong, so the failure names the handle and the story and stops there.
 
 ## 13. Azure DevOps versus local files
 
@@ -541,7 +604,7 @@ Externally visible or destructive actions require human approval — at minimum:
 - Publishing test cases to Azure DevOps
 - Creating bugs in Azure DevOps
 - Generating automation code after the automation plan review
-- Any action against a non-STG environment
+- Any action against an environment not allow-listed by the active project
 
 ## 17. Project goal
 

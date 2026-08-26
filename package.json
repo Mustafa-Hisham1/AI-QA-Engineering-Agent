@@ -12,6 +12,7 @@
     "story:read": "node src/cli/read-story.ts",
     "testcases:publish": "node src/cli/publish-test-cases.ts",
     "bug:publish": "node src/cli/publish-bug.ts",
+    "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -6,7 +6,7 @@ allowed-tools: Read, Edit, Glob, Grep, Bash(npm run testcases:publish:*), Bash(n
 
 # Publish Test Cases for a User Story
 
-Create the **approved** Test Cases in `docs/test-cases/US-<ID>/test-cases.md` as **child Test Case
+Create the **approved** Test Cases in `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md` as **child Test Case
 work items** of that User Story in Azure DevOps, then record each new Azure DevOps ID back into
 the local artifact.
 
@@ -14,7 +14,24 @@ the local artifact.
 that does. Everything below exists to make sure each write is intended, approved, and
 non-duplicating.
 
-## Step 0 — Resolve the User Story ID
+## Step 0 — Resolve the active project, then the User Story ID
+
+**Resolve the active project before reading anything.** `<KEY>` below means that project's
+key, and every artifact path in this skill is under `docs/projects/<KEY>/`.
+
+1. A key stated in the request (`--project <KEY>`, or "for <KEY>") wins.
+2. Otherwise `QA_ACTIVE_PROJECT` in the environment.
+3. Otherwise, **only** if exactly one directory under `docs/projects/` has a `profile.md`,
+   use it.
+4. Otherwise **stop and ask the human which project these Test Cases belong to.**
+
+**Never guess the project.** This skill creates real work items: a wrong project publishes one
+client's Test Cases onto another client's board, and nothing about the result looks wrong until
+someone notices. Do not infer the project from the story ID — story IDs are unique per Azure
+DevOps project, not globally.
+
+Pass the resolved key through to the publisher as `--project <KEY>`. The command refuses to run
+when the project is ambiguous.
 
 The ID is `$ARGUMENTS`. Below, `<ID>` means that value.
 
@@ -42,7 +59,7 @@ real work items under the wrong story.
 ## Step 1 — Read the local state
 
 ```
-docs/test-cases/US-<ID>/test-cases.md
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md
 ```
 
 - **Missing** → stop. Report that US <ID> has no Test Case artifact and that the

@@ -76,7 +76,7 @@ matching the local file).
 
 ## Evidence
 
-`docs/executions/US-53717/RUN-002/evidence/tc-002-login-form-fullpage.png` — reused from RUN-002,
+`docs/projects/NBO/executions/US-53717/RUN-002/evidence/tc-002-login-form-fullpage.png` — reused from RUN-002,
 uploaded to Bug 56329 as a real Azure DevOps attachment. Rendered screenshot only; no
 accessibility snapshot (invariant 7). Evidence remains **gitignored**.
 

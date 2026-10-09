@@ -36,6 +36,25 @@ Only Admin Panel cases are in scope for manual execution (human decision,
 
 ## Open items
 
+- **Neither Test Case artifact has Need Automation values yet** (automation
+  Phase 1, `docs/product-decisions.md` §6.3). Both US 53717 (52 cases) and
+  US 52860 (35 cases) predate the field, so every case parses as *undecided*.
+  `npm run testcases:check -- 53717 --project NBO` reports all 52 as missing.
+  Run `/write-test-cases` on each story to add recommendations for human review.
+  Nothing else in either artifact changes.
+- **Playwright automation is ready but has nothing to automate** (automation
+  Phase 2, `docs/product-decisions.md` §7.1, 2026-10-09).
+  `npm run automation:scope -- 53717 --project NBO` puts **0 of 52** cases in
+  scope — all undecided. Before `/automate-test-cases` can produce anything:
+  1. Need Automation values on the cases, human-reviewed (item above).
+  2. In `.env` (checked 2026-10-09, names only): **`APP_ENV`,
+     `APP_STG_ADMIN_URL` and every handle value are absent** — only the ADO
+     variables are set. Account handles use `<HANDLE>_USERNAME` /
+     `<HANDLE>_PASSWORD`, e.g. `ADMIN_VALID` reads `ADMIN_VALID_USERNAME` and
+     `ADMIN_VALID_PASSWORD`.
+  3. Agent Portal cases cannot be automated until an Agent Portal URL is
+     configured: the profile names one base URL, the Admin Panel's.
+  The artifact-safety check passes (`npm run automation:verify-artifacts`).
 - **US 53717: no blocking questions remain.** Twelve decisions (D-01…D-12)
   closed them; 17 non-blocking questions stay recorded in
   `requirements/US-53717/requirement-analysis.md` §12. Two are **deliberately

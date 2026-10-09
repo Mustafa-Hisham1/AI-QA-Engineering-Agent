@@ -1,0 +1,35 @@
+{
+  "info": { "_postman_id": "11111111-2222-3333-4444-555555555555", "name": "DEMO Auth Collection", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json" },
+  "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "Postman-Bearer-Secret-777", "type": "string" }] },
+  "variable": [
+    { "key": "baseUrl", "value": "https://stg.internal.example.test" },
+    { "key": "adminPassword", "value": "Postman-Var-Secret-555" }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login",
+          "event": [{ "listen": "test", "script": { "exec": ["const body = pm.response.json();", "pm.environment.set('authToken', body.token);"] } }],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Client-Secret", "value": "Postman-Header-Secret-333" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"real.person@example.test\",\n  \"password\": \"Postman-Body-Secret-111\",\n  \"agencyCode\": \"{{agencyCode}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login?lang=en", "host": ["{{baseUrl}}"], "path": ["auth", "login"], "query": [{ "key": "lang", "value": "en" }] }
+          },
+          "response": [{ "name": "Success", "code": 200, "status": "OK", "body": "{\"token\": \"Response-Token-Secret-999\", \"user\": {\"id\": 7}}" }]
+        },
+        {
+          "name": "Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{authToken}}" }],
+            "url": "{{baseUrl}}/users/me"
+          }
+        }
+      ]
+    }
+  ]
+}

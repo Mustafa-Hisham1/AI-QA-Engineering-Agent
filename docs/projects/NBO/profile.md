@@ -24,6 +24,7 @@ absent must **stop and say so**, never assume one.
 | Title Project Token | NBO |
 | Allowed Environments | STG |
 | Environment Label Variable | APP_ENV |
+| Automation Base URL Variable | APP_{ENV}_ADMIN_URL |
 | Artifact Root | docs/projects/NBO |
 
 The tracker project name is deliberately **not** duplicated here: it lives in
@@ -119,6 +120,24 @@ them are `BLOCKED` / `TEST_DATA_ISSUE` until a human configures them.
 **Handles that consume state** — lockout accounts and single-use data — are
 destructive. Confirm with the human before executing cases that burn them, and
 never reuse such an account across cases in one run without saying so.
+
+## Automation
+
+Playwright automation is shared methodology (`docs/product-decisions.md` §7.1);
+this section records only what is NBO-specific. Nothing here may weaken a rule
+defined there.
+
+| | |
+|---|---|
+| Automated application | **Admin Panel (STG) only.** The base URL is `APP_{ENV}_ADMIN_URL`, so `APP_ENV=STG` reads `APP_STG_ADMIN_URL`. The Agent Portal has no configured URL, so Agent Portal cases are `NOT AUTOMATED — ENVIRONMENT_UNAVAILABLE` until one is |
+| Code | `automation/NBO/<Module>/` — Page Objects in `pages/`, one spec per Test Case in `tests/` |
+| Plans | `docs/projects/NBO/automation/<Module>/automation-plan.md` |
+| Login | Username + password, no MFA, SSO or CAPTCHA on STG (`decisions.md` → *Login flow*) |
+| Handle values | By the shared convention: an account handle reads `<HANDLE>_USERNAME` and `<HANDLE>_PASSWORD`; a single-value handle such as an agency code reads `<HANDLE>`. Values live in `.env` only |
+
+**Not yet automatable:** no case of either story has a `Need Automation`
+value, and `.env` does not yet hold `APP_ENV`, the Admin Panel URL, or any
+handle value. See `state.md`.
 
 ## Terminology
 

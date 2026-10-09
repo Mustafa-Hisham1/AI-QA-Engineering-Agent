@@ -42,6 +42,22 @@ export function isReviewStatus(value: string): value is ReviewStatus {
   return (REVIEW_STATUSES as readonly string[]).includes(value);
 }
 
+/**
+ * The automation-scope decision (`docs/product-decisions.md` §6.3).
+ *
+ * The agent writes an initial recommendation; the human may change it, and the
+ * value in the artifact after review is what decides future automation scope.
+ * Deliberately independent of {@link ReviewStatus}: `Yes` is not approval, and
+ * approval does not imply `Yes`.
+ */
+export type NeedAutomation = 'Yes' | 'No';
+
+export const NEED_AUTOMATION_VALUES: readonly NeedAutomation[] = ['Yes', 'No'];
+
+export function isNeedAutomation(value: string): value is NeedAutomation {
+  return (NEED_AUTOMATION_VALUES as readonly string[]).includes(value);
+}
+
 /** One Test Case, exactly as the local artifact defines it. */
 export interface TestCaseRecord {
   /** Stable internal ID, e.g. `TC-53717-001`. Assigned before any external ID. */
@@ -58,6 +74,12 @@ export interface TestCaseRecord {
   /** Azure DevOps work item ID once published; null before that. */
   readonly adoId: number | null;
   readonly status: ReviewStatus;
+  /**
+   * Whether this case belongs in future automation scope. Null when the artifact
+   * records no decision — an artifact generated before the field existed. Null
+   * is "undecided", never an implicit `Yes` or `No`.
+   */
+  readonly needAutomation: NeedAutomation | null;
   readonly precondition: readonly string[];
   readonly testData: readonly string[];
   readonly steps: readonly TestCaseStep[];

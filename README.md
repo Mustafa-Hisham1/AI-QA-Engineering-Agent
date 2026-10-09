@@ -4,7 +4,9 @@ An AI-assisted QA lifecycle built around **Azure DevOps User Stories**, run insi
 Claude Code. The agent reads a User Story and its specification attachments,
 analyses the requirements, generates test cases, publishes the approved ones to
 Azure DevOps, executes them against a web application through the Playwright MCP
-server, classifies failures, and prepares Bug Candidates for human review.
+server, classifies failures, and prepares Bug Candidates for human review. Cases a
+human marks **Need Automation = Yes** become deterministic Playwright tests, after a
+human-approved Automation Plan.
 
 ```
 Read User Story + attachments -> requirements analysis -> generate test cases
@@ -41,6 +43,7 @@ every Azure DevOps write requires explicit human approval immediately beforehand
 - [Current project state](#current-project-state)
 - [Typical usage](#typical-usage)
 - [Commands](#commands)
+- [Playwright automation](#playwright-automation)
 - [Development](#development)
 - [Current limitations](#current-limitations)
 
@@ -79,14 +82,20 @@ other tracker. Adding a project does not change anything in `src/`.
 ├── README.md                       this file
 ├── .env                            secrets + environment config (GITIGNORED, human-provided)
 ├── .env.example                    documents every variable, values empty
-├── .mcp.json                       Playwright MCP server configuration
+├── .mcp.json                       Playwright MCP server configuration (manual execution)
+├── playwright.config.ts            the ONE Playwright config (automation); active project only
 │
 ├── .claude/skills/                 METHOD — the reusable workflow Skills
 │   ├── analyze-story/SKILL.md
 │   ├── write-test-cases/SKILL.md
 │   ├── publish-test-cases/SKILL.md
 │   ├── execute-test-cases/SKILL.md
-│   └── publish-bug/SKILL.md
+│   ├── publish-bug/SKILL.md
+│   └── automate-test-cases/SKILL.md
+│
+├── automation/<KEY>/<Module>/      PROJECT automation code (created by the first approved plan)
+│   ├── pages/<Feature>Page.ts
+│   └── tests/TC-<story>-NNN.spec.ts
 │
 ├── docs/
 │   ├── product-decisions.md        METHOD — the full shared decision record
@@ -98,7 +107,8 @@ other tracker. Adding a project does not change anything in `src/`.
 │       │   ├── state.md
 │       │   ├── requirements/US-<id>/
 │       │   ├── test-cases/US-<id>/
-│       │   └── executions/US-<id>/RUN-<nnn>/
+│       │   ├── executions/US-<id>/RUN-<nnn>/
+│       │   └── automation/<Module>/automation-plan.md
 │       └── NDC-CORE/
 │           └── profile.md          placeholder only — see Current project state
 │
@@ -116,9 +126,26 @@ other tracker. Adding a project does not change anything in `src/`.
 │   │   └── errors.ts               AdoError + redact()
 │   ├── projects/
 │   │   └── active-project.ts       active project resolution + project-scoped paths
+│   ├── analysis/                   optional analysis sources (read-only)
+│   │   ├── api-spec.ts             OpenAPI / Swagger / Postman reader — names, never values
+│   │   └── sources.ts              source status, UI decision, provenance, change detection
 │   ├── testcases/
-│   │   ├── model.ts                TestCaseRecord, status vocabulary
-│   │   └── artifact.ts             strict artifact parser + ID/status write-back
+│   │   ├── model.ts                TestCaseRecord, status + Need Automation vocabulary
+│   │   ├── artifact.ts             strict artifact parser + ID/status write-back
+│   │   └── regeneration.ts         what a regeneration must preserve
+│   ├── automation/                 Playwright framework (shared, all projects)
+│   │   ├── config.ts               env guard + handle resolution; reads process.env
+│   │   ├── fixtures.ts             the `test` every spec imports
+│   │   ├── sanitizer.ts            the one credential sanitizer for Playwright text
+│   │   ├── reporting/              the HTML execution report (reporter, build, classify,
+│   │   │                           generator, not-automated, writer, model)
+│   │   ├── scope.ts                Need Automation=Yes AND approved; Module paths
+│   │   ├── traceability.ts         @TC/@US tags + annotations
+│   │   ├── artifact-policy.ts      what Playwright may write to disk
+│   │   ├── code-safety.ts          rules every automation/ file must satisfy
+│   │   ├── global-setup.ts         refuses a run before any browser starts
+│   │   ├── runner.ts               starts the pinned local Playwright
+│   │   └── artifact-check/         the offline secret-leak check
 │   ├── text/                       HTML <-> Markdown conversion
 │   └── cli/                        human-facing entry points
 │
@@ -127,6 +154,14 @@ other tracker. Adding a project does not change anything in `src/`.
     ├── bug.test.ts                 the three disjoint Bug builders
     ├── active-project.test.ts      resolution, refusal-to-guess, path scoping
     ├── profile-drift.test.ts       handles used must be declared in the profile
+    ├── regeneration.test.ts        regeneration keeps IDs, statuses, Need Automation
+    ├── api-spec.test.ts            OpenAPI / Swagger / Postman reading, no value emitted
+    ├── analysis-sources.test.ts    source combinations, UI decision, provenance, fingerprint
+    ├── analyze-story-skill.test.ts Skill contract: tools, rules, read-only code
+    ├── automation-config.test.ts   env guard, PROD block, handle convention
+    ├── automation-scope.test.ts    selection, Module layout, traceability
+    ├── automation-code-safety.test.ts  code rules + scan of automation/
+    ├── automation-reporting.test.ts    HTML report, Bug Candidates, sanitizer
     └── fixtures/valid-artifact.md
 ```
 
@@ -190,12 +225,51 @@ decisions.md              Confirmed HUMAN decisions. Human authority — outrank
 source/                   Verbatim snapshot of the .md attachment(s).
 ```
 
+**Analysis sources** (`docs/product-decisions.md` §14.1). The **User Story and its
+attachments are required** and remain the source of truth. Two sources are optional
+and never block an analysis:
+
+- **API specification** — `/analyze-story <ID> --api <spec.json>`: OpenAPI 3,
+  Swagger 2 or Postman Collection (JSON). Statements from it are tagged **[API]**.
+  The file is **not** copied into `source/` — Postman collections often hold tokens —
+  so the analysis records its path and sha256 instead.
+- **UI exploration** — `--ui` (and `--ui-account <HANDLE>` to log in): read-only
+  exploration through Playwright MCP on the allowed non-PROD environment.
+  Observations are tagged **[UI]** — current behaviour, never a requirement.
+
+The analysis opens with a **Source Coverage** table (User Story · Markdown
+Attachments · API Specification · UI Exploration). An absent source reads
+`Not provided` / `Not performed — <reason>`. Where API or UI disagrees with the
+story or a decision, every side is recorded and an open question raised.
+`npm run analysis:preflight` reports whether the story or the API specification
+changed since the last analysis.
+
 ### `test-cases/US-<id>/test-cases.md`
 
 The Test Case set: provenance and fingerprint, test-data handles, coverage map,
 deliberate exclusions, the cases, rejected cases, and the AI self-review record.
-Regenerable — but Test Case IDs, human-set statuses and published Azure DevOps IDs
-survive regeneration. Test Case IDs are `TC-<storyId>-NNN` and are never reused.
+Regenerable — but Test Case IDs, human-set statuses, published Azure DevOps IDs and
+Need Automation values survive regeneration. Test Case IDs are `TC-<storyId>-NNN`
+and are never reused.
+
+**Need Automation (automation Phase 1).** Every case's metadata table carries a
+`| Need Automation | Yes |` (or `No`) row:
+
+- `/write-test-cases` writes it as an **AI recommendation**, weighing feasibility,
+  reliability/determinism, regression value and maintainability. The reason for
+  each case is in the AI self-review record.
+- **The human may change any value** in this file. The value after human review
+  is the source of truth for future automation scope: `Yes` is in, `No` is out.
+- It is **independent of Review/Lifecycle Status**. `Yes` is not approval, and
+  approving a case does not make it `Yes`.
+- **A recorded value is never overwritten by regeneration**, whoever set it.
+  `npm run testcases:check` enforces this.
+- It stays local and is not published to Azure DevOps.
+- A case without the row (an artifact generated before the field existed) is
+  *undecided*, never an implicit `Yes`.
+
+Nothing is automated yet; this phase only records the decision. Full rules:
+`docs/product-decisions.md` §6.3.
 
 ### `executions/US-<id>/RUN-<nnn>/`
 
@@ -403,16 +477,17 @@ genuinely needs the tracker:
 
 ## How Skills stay reusable
 
-There are **five Skills, shared by every project.** There is no NBO Skill and no
+There are **six Skills, shared by every project.** There is no NBO Skill and no
 NDC-CORE Skill, and there must never be — duplicating a Skill per project is how the
 method silently forks and two projects end up with different definitions of `FAIL`.
 
 | Skill | Does | Never does |
 |---|---|---|
-| `/analyze-story <ID>` | Reads the story + `.md` attachments, writes the Requirement Analysis | Generate test cases · write to ADO · commit |
-| `/write-test-cases <ID>` | Generates Test Cases from the local analysis, AI self-reviews | Read ADO · publish · approve · commit |
+| `/analyze-story <ID> [--api <spec>] [--ui]` | Reads the story + `.md` attachments — optionally an API spec (OpenAPI/Swagger/Postman) and the live UI — and writes the Requirement Analysis | Generate test cases · write to ADO · let a missing optional source block · treat API/UI evidence as a requirement · commit |
+| `/write-test-cases <ID>` | Generates Test Cases from the local analysis, recommends Need Automation per case, AI self-reviews | Read ADO · publish · approve · automate · overwrite a recorded Need Automation value · commit |
 | `/publish-test-cases <ID>` | Publishes **approved** cases as child Test Case work items, records ADO IDs | Publish anything not `Approved` · retry a write · commit |
 | `/execute-test-cases <ID> [TC-ID…]` | Executes approved Web UI cases via Playwright MCP, records results + evidence | Write to ADO · modify a Test Case · invent an Expected Result · commit |
+| `/automate-test-cases <ID> [TC-ID…]` | Plans, then (after plan approval) generates Playwright for approved cases with Need Automation = Yes, by Module | Change a Test Case or Need Automation · generate code before plan approval · write to ADO · create a Bug · commit |
 | `/publish-bug <candidate>` | Publishes **one** reviewed Bug Candidate, then verifies it field by field | Publish anything not `PRODUCT_BUG` · retry a write · commit |
 
 What makes them reusable:
@@ -437,7 +512,7 @@ profile and the Skill should read it there.
 | Location | Contains | Never contains |
 |---|---|---|
 | `CLAUDE.md` | The method: invariants, approval gates, capabilities, conventions, layout. The session source of truth for *how* the agent works. | Any fact about one project |
-| `.claude/skills/` | The five reusable workflow Skills. Methodology only. | Project handles, hosts, modules, terminology |
+| `.claude/skills/` | The six reusable workflow Skills. Methodology only. | Project handles, hosts, modules, terminology |
 | `docs/product-decisions.md` | The full shared decision record with reasoning, plus rejected alternatives. | Instance facts (those are pointed at, in the project's own files) |
 | `docs/projects/<KEY>/` | Everything about one project: profile, decisions, state, and all its artifacts | Rules that should apply to every project · credential values |
 | `src/projects/` | Active project resolution and project-scoped path helpers. No Azure DevOps knowledge; reads no secrets. | Tracker logic |
@@ -449,8 +524,9 @@ Two checkable boundaries:
 # ADO field names appear only inside src/ado/
 grep -rn "Microsoft.VSTS\|System\." src --include=*.ts
 
-# process.env is read only by config.ts, plus the one non-secret project key
-grep -rn "process\.env" src --include=*.ts
+# process.env is read only by src/ado/config.ts and src/automation/config.ts,
+# plus the one non-secret project key in src/projects/active-project.ts
+grep -rln "process\.env" src automation playwright.config.ts --include=*.ts
 ```
 
 ---
@@ -524,7 +600,7 @@ A profile **cannot** enable, relax, waive, or reconfigure any of these:
 | **PROD protection** | PROD is blocked by default. A profile may add an allowed **non-PROD** environment; it can **never** unblock PROD. Any PROD execution or write requires explicit human confirmation, and `execute-test-cases` refuses PROD outright — no exception, no flag, no override. |
 | **Human approval gates** | Every Azure DevOps write requires explicit human approval **immediately before the write**. Approval given earlier does not carry forward. The agent never approves its own work — only an explicit human statement makes something approved. |
 | **Read/write PAT separation** | Structural, not conventional. `src/ado/http.ts` is GET-only; writes live in `src/ado/http-write.ts` behind a separate write-scoped credential (`ADO_PAT_WRITE`) that `AdoConfig` never holds. The read path cannot reach the write credential. |
-| **Credential and secret rules** | Secrets never leave `.env`. `src/ado/config.ts` is the only module that may read a credential from the environment. Every error passes through `redact()`. Profiles name handles and variable names only — never values. |
+| **Credential and secret rules** | Secrets never leave `.env`. Only `src/ado/config.ts` (tracker) and `src/automation/config.ts` (application under test) may read a credential from the environment. Every error passes through `redact()`. Profiles name handles and variable names only — never values. |
 | **Evidence security** | Accessibility snapshots are **never** persisted as evidence — the Playwright accessibility tree returns typed passwords in plain text even when the UI masks them. Rendered screenshots only, and only when they expose no secret. `evidence/` is gitignored. |
 | **No retried writes** | Reads are safely retryable; writes are not. Blind-retrying a write is how duplicate Test Cases and Bugs get created. |
 | **Execution never writes to ADO** | No Test Run, no Test Result, no Bug. A `PRODUCT_BUG` becomes a local Bug Candidate that stops for human review. |
@@ -645,14 +721,27 @@ npm run story:read -- <ID> --summary               # metadata + attachment list 
 npm run story:read -- <ID> --json
 npm run story:read -- <ID> --save-source <dir>     # save .md attachments verbatim
 
+npm run analysis:preflight -- <ID> --project <KEY> [--api <path>] [--ui] [--ui-account <HANDLE>] [--fingerprint <sha256>]
+                                                   # optional analysis sources: status, changes, provenance rows
+npm run api:read -- <spec.json> [--match <term>]... # relevant API operations — names only, never values
+
 npm run testcases:publish -- <ID> --project <KEY>            # DRY RUN (default)
 npm run testcases:publish -- <ID> --project <KEY> --confirm  # writes; needs approval first
 npm run testcases:publish -- <ID> --project <KEY> --verify   # verify only, writes nothing
 npm run testcases:publish -- <ID> --project <KEY> --confirm --limit 1   # canary
 
+npm run testcases:check -- <ID> --project <KEY> --snapshot   # before regenerating: save the artifact
+npm run testcases:check -- <ID> --project <KEY>              # after: nothing lost, Need Automation on every case
+
 npm run bug:publish -- <input.json>                    # DRY RUN + story-scoped duplicate check
 npm run bug:publish -- <input.json> --confirm          # publishes, then verifies
 npm run bug:publish -- <input.json> --verify-only <id> # re-verify, writes nothing
+
+npm run automation:scope -- <ID> --project <KEY>             # cases in automation scope, by Module
+npm run automation:list -- --project <KEY> [--grep @TC-<id>] # Playwright discovery; no environment
+npm run automation:test -- --project <KEY> [--grep @TC-<id>] # run against the allowed environment + HTML report
+npm run automation:report -- --project <KEY> [--run RUN-<NNN>] # find / re-render a run's HTML report
+npm run automation:verify-artifacts                           # typed secrets must not reach any output or the report
 
 npm test                                           # node --test
 npm run typecheck                                  # tsc --noEmit, strict
@@ -664,6 +753,123 @@ requires explicit human approval immediately beforehand. `bug:publish` publishes
 Bugs get created. Exit code **3** means `PUBLISH_VERIFICATION_FAILED`: the Bug
 **exists** and must be fixed by hand, never by re-running.
 
+`testcases:check` reads and writes local files only. It exits **1** when a
+regeneration lost a Test Case ID, an Azure DevOps ID, a human-set status or a
+Need Automation value, or when any case has no Need Automation value. A failed
+check keeps the gitignored `test-cases.previous.md` snapshot so the lost values
+can be restored; a clean check removes it.
+
+---
+
+## Playwright automation
+
+Deterministic Playwright is the regression oracle; the MCP-driven
+`/execute-test-cases` is the bug-finding tool. They are different jobs and stay
+separate. Full rules: `docs/product-decisions.md` §7.1.
+
+**What gets automated.** `npm run automation:scope` selects, by code: **Need
+Automation = `Yes` AND status `Approved`/`Published`.** `No` is never automated, a
+missing value is *undecided* (never treated as `Yes`), and an unapproved `Yes` is
+refused. Every exclusion is listed with its reason.
+
+**The gate.** `/automate-test-cases` writes an **Automation Plan per Module** and
+stops. Code is generated only after the human explicitly approves that plan in the
+session. A `Yes` case that cannot be automated is recorded as
+`NOT AUTOMATED — <CATEGORY>` (missing stable locator, test data unavailable,
+auth flow unsupported, framework capability missing, environment unavailable) —
+its Need Automation stays `Yes`.
+
+**Layout — by Module, not by User Story.**
+
+```
+docs/projects/<KEY>/automation/<Module>/automation-plan.md    plan + per-case status
+automation/<KEY>/<Module>/pages/<Feature>Page.ts              Page Objects
+automation/<KEY>/<Module>/tests/TC-<story>-NNN.spec.ts        one spec per Test Case
+```
+
+**Traceability.** Each spec is titled `TC-<story>-NNN — <title>`, tagged
+`@TC-<story>-NNN` and `@US-<story>`, and annotated with the Azure DevOps ID:
+
+```bash
+npm run automation:list -- --project NBO --grep @TC-53717-006   # which test implements it?
+npm run automation:list -- --project NBO --grep @US-53717       # every test for a story
+```
+
+**Environment and credentials.** The label (`APP_ENV`) must be on the active
+profile's allow-list and is never PROD; the base URL comes from the variable the
+profile's `Automation Base URL Variable` names, with `{ENV}` replaced by the label.
+An account handle `H` reads `H_USERNAME` / `H_PASSWORD` and a single-value handle
+reads `H` — from `.env` only, through `src/automation/config.ts`. Login is a fresh
+UI login per test; no session is saved to disk.
+
+**Artifact safety — verified.** On failure, Playwright writes an
+`error-context.md` containing an ARIA snapshot of the page, and that snapshot held a
+typed password in plain text; a trace holds it too; and a failing `fill()` prints
+`fill("<password>")` in its call log. All are suppressed — every error passes one
+sanitizer (`src/automation/sanitizer.ts`) before any reporter or file sees it — and
+code that would bring them back (ARIA-snapshot assertions, tracing, saved sessions,
+`process.env`, bypassing the fixtures) fails `npm test`. **Run
+`npm run automation:verify-artifacts` before any credentialed run and after every
+Playwright upgrade.** Output lives in the gitignored `.artifacts/`. The check also proves every test — passing and failing — has its video in the report, that every attachment is a genuine PNG/WebM inside the run's `attachments/`, and that the HTML references nothing else.
+
+### The HTML execution report
+
+Every run that executes at least one test writes a standalone QA report — no
+script, no external resource — through a Playwright reporter; specs do nothing:
+
+```
+.artifacts/reports/<KEY>/RUN-<NNN>/          append-only, gitignored
+├── execution-report.html                    open this
+├── execution-results.json                   the same data, machine-readable
+├── bug-candidates/BUG-NNN.md                local Draft Bug Candidates
+└── attachments/
+    ├── TC-53717-001.png                     failure screenshot (failures only)
+    ├── TC-53717-001.webm                    video — every test, any outcome
+    └── TC-53717-002.webm
+```
+
+`automation:test` prints its path; `npm run automation:report -- --project <KEY>`
+finds the latest run again (or `--run RUN-<NNN>`), re-renders it from its stored
+results, and prints a `file://` link to open.
+
+- **Execution Summary** — project, User Stories, Modules, environment label and
+  host, start time, duration, and Passed / Failed / Not Run / Not Automated
+  totals with a PASS/FAIL verdict, plus a list of failed cases naming the failed
+  step and the reason.
+- **Test Case Results** — one expandable row per case: Test Case ID, User Story,
+  ADO ID, title, status, duration, the Playwright spec, and every step with its
+  Expected Result (from the Test Case) and Actual Result. A failure opens on a
+  *Why it failed* panel: failed step, Expected, Actual, reason, classification,
+  full error. Every case — passed or failed — has an *Attachments* block:
+  *View Screenshot* (a clickable preview, failures only) and a playable video
+  with a *▶ Play Video* link.
+- **Bug Reports** — every failure classified `PRODUCT_BUG` on a traceable case,
+  as a local **Draft** Bug Candidate: title, description, steps to reproduce,
+  expected and actual result, related Test Case and User Story, classification,
+  environment, screenshot and video. **Nothing is created in Azure DevOps.** To publish
+  one, a human reviews it and runs `/publish-bug <run>/bug-candidates/BUG-NNN.md`.
+
+`NOT RUN` is a skipped test (for example missing test data — never a FAIL).
+`NOT AUTOMATED` is an in-scope case of an executed story with no spec, with the
+reason from its Automation Plan. **Classification is automatic and provisional**
+(`docs/product-decisions.md` §7.2) — confirm it before acting on it.
+
+**What the report's text never contains:** credentials, `.env` values, traces,
+ARIA or page snapshots, `error-context.md`. Attachments are an allow-list —
+failure screenshots and test videos only, each copied only if it lies inside
+Playwright's output directory and its bytes really are PNG / WebM, so no other
+file can be smuggled in as a "video".
+
+**Video (human decision, `docs/product-decisions.md` §7.2.1).** Automated runs
+record a video of every test — pass, fail, or not run once started — for the
+project testing team. A failed test keeps its video. Videos show the UI exactly
+as it ran: **the risk of sensitive STG content in a recording is explicitly
+accepted**, and a video is never deleted or blanked for it. They are retained like
+all other evidence — local, gitignored, append-only, never committed, never sent
+to Azure DevOps. Recording changes nothing about PROD: a run is still refused
+unless its label is allowed and not PROD. MCP-driven manual execution still
+records no video.
+
 ---
 
 ## Development
@@ -673,10 +879,13 @@ directly — there is no build step.
 
 **Zero runtime dependencies** by design. Node provides TypeScript execution, `.env`
 loading, `fetch`, timeouts, and the test runner natively. Dev dependencies are
-limited to `typescript` and `@types/node`.
+limited to `typescript`, `@types/node`, and `@playwright/test` pinned to an exact
+version (Chromium only).
 
 ```bash
 cp .env.example .env    # then fill in real values; .env is gitignored
+npm install
+npx playwright install chromium   # browser for automation only
 npm run ado:check       # verify read-only connectivity
 npm test                # node --test
 npm run typecheck       # tsc --noEmit, strict
@@ -692,10 +901,18 @@ Conventional Commits; comments explain *why*, not *what*.
 
 | Suite | Covers |
 |---|---|
-| `artifact.test.ts` | Strict artifact parsing and ID/status write-back |
+| `artifact.test.ts` | Strict artifact parsing (including Need Automation) and ID/status write-back |
+| `regeneration.test.ts` | IDs, Azure DevOps IDs, human-set statuses and Need Automation survive regeneration, each checked independently |
+| `api-spec.test.ts` | OpenAPI 3, Swagger 2 and Postman reading — operations, fields, constraints, enums, auth, dependencies — and that no example, header, variable or credential value is ever emitted |
+| `analysis-sources.test.ts` | The four source combinations, optional sources never blocking, the UI exploration decision (PROD and unlisted labels refused), provenance round-trip, change detection, the golden story fingerprint |
+| `analyze-story-skill.test.ts` | The `/analyze-story` contract: granted tools exclude every write path, the rules its text must keep, and that the analysis code is read-only |
 | `bug.test.ts` | The three disjoint Bug builders; Severity written, Priority not |
 | `active-project.test.ts` | Resolution precedence, refusal to guess, key validation, path scoping |
 | `profile-drift.test.ts` | Every handle a Test Case uses is declared in its project's profile |
+| `automation-config.test.ts` | Environment guard (label, allow-list, PROD block, hostname has no authority), handle convention, redaction |
+| `automation-scope.test.ts` | Automation selection, Module layout, Test Case traceability |
+| `automation-code-safety.test.ts` | The automation code rules, and a scan of every file under `automation/` |
+| `automation-reporting.test.ts` | HTML report statuses, steps, failures, Bug Candidates, screenshot and video allow-list (PASS and FAIL videos, path containment, file signatures), the sanitizer, and that no credential is ever rendered |
 
 `profile-drift.test.ts` is project-agnostic: it discovers whatever projects exist and
 fails when a Test Case references a handle its profile does not declare. It is
@@ -726,9 +943,33 @@ Stated plainly rather than smoothed over.
 - **Drift detection is heuristic.** It scans `**Test Data**` blocks for
   backticked `SCREAMING_SNAKE_CASE` tokens. A case that names handles elsewhere
   would not be checked.
+- **API specifications: JSON only.** OpenAPI 3, Swagger 2 and Postman v2.x, as JSON. YAML is reported as unusable (no YAML parser — zero dependencies); export it as JSON. External `$ref`s are not fetched. A local path only — no URL.
+- **UI exploration is agent-driven.** Whether it may run is decided by code; *how* it explores, and that it stays read-only, rests on the Skill's rules and its granted tools, as with `/execute-test-cases`.
 - **V1 reads the `User Story` work item type only.** `Product Backlog Item`, `Epic`,
   `Feature` and `Issue` are not supported.
-- **Not built:** reporting, Azure DevOps Test Runs, and automation code generation.
+- **Not built:** Azure DevOps Test Runs, CI/CD and scheduled automation runs,
+  publishing Bugs from automation failures (they stay local Drafts), dashboards and
+  cross-run trends, self-healing locators, saved login sessions.
+- **Report classification is rule-based.** It reads the error text; it cannot
+  tell a stale locator from a removed element, so an element-not-found assertion
+  becomes a suspected `PRODUCT_BUG` for a human to confirm.
+- **Short credentials are not redacted by value.** The shared redaction registry
+  ignores values under 8 characters; such a value is still removed from `fill()`
+  call logs, but would survive anywhere else it appeared verbatim.
+- **Automation is a foundation, not yet a suite.** The framework, scope selection,
+  traceability, environment guard and artifact safety are built and tested, but no
+  spec exists yet: no case is in scope until a human sets Need Automation values, and
+  `/automate-test-cases` has not yet run end to end.
+- **One base URL per project.** `Automation Base URL Variable` names one
+  application. A project with two web applications (two portals) can automate only
+  the configured one; the other's cases are `NOT AUTOMATED — ENVIRONMENT_UNAVAILABLE`.
+- **No per-handle variable override.** Handle values follow the `_USERNAME` /
+  `_PASSWORD` / bare-name convention only.
+- **Artifacts generated before Phase 1 have no Need Automation values.** Their cases
+  parse as *undecided*, and they still publish and verify. The next
+  `/write-test-cases` run on such a story adds a recommendation to those cases only
+  and changes nothing else. Which artifacts are affected is recorded per project in
+  `docs/projects/<KEY>/state.md`.
 - **Undecided:** whether execution evidence stays gitignored (current behaviour) or
   is committed for traceability. Screenshots may carry internal product data, so the
   safe default stands.

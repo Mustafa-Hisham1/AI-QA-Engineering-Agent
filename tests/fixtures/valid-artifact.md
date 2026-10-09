@@ -17,6 +17,7 @@
 | Decisions Applied | — |
 | Azure DevOps ID | **55294** |
 | Review/Lifecycle Status | Published |
+| Need Automation | Yes |
 
 **Precondition**
 - The portal URL is reachable and the user is **not** authenticated.
@@ -44,6 +45,7 @@
 | Decisions Applied | D-01 |
 | Azure DevOps ID | — |
 | Review/Lifecycle Status | Approved |
+| Need Automation | No |
 
 **Precondition**
 - A valid account exists.

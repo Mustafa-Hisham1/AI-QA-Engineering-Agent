@@ -1,0 +1,63 @@
+{
+  "openapi": "3.0.1",
+  "info": { "title": "DEMO Auth API", "version": "1.2.0" },
+  "security": [{ "bearerAuth": [] }],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Authenticate a user",
+        "tags": ["Authentication"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Authenticated",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginResponse" } } },
+            "links": { "GetProfile": { "operationId": "getProfile" } }
+          },
+          "401": { "description": "Invalid credentials" },
+          "423": { "description": "Account locked" }
+        }
+      }
+    },
+    "/users/{id}": {
+      "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "integer", "minimum": 1 } }],
+      "get": {
+        "operationId": "getProfile",
+        "summary": "Read a user profile",
+        "tags": ["Users"],
+        "parameters": [{ "name": "include", "in": "query", "schema": { "type": "string", "enum": ["roles", "agency"] } }],
+        "responses": { "200": { "description": "The profile", "content": { "application/json": { "schema": { "type": "object", "properties": { "status": { "type": "string", "enum": ["ACTIVE", "DISABLED", "LOCKED"] } } } } } } }
+      }
+    },
+    "/cities": {
+      "get": { "operationId": "listCities", "summary": "List cities", "tags": ["City"], "responses": { "200": { "description": "OK" } } }
+    }
+  },
+  "components": {
+    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "maxLength": 50, "example": "real.person@example.test" },
+          "password": { "type": "string", "minLength": 8, "writeOnly": true, "example": "Example-Secret-Pw1" },
+          "agencyCode": { "type": "string", "pattern": "^[A-Z0-9]{6}$" },
+          "rememberMe": { "type": "boolean" }
+        }
+      },
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string" },
+          "user": { "type": "object", "properties": { "id": { "type": "integer" }, "role": { "type": "string", "enum": ["ADMIN", "AGENT"] } } }
+        }
+      }
+    }
+  }
+}

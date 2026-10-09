@@ -163,8 +163,8 @@ cases in one run without saying so.
 ## Step 5 — Start the browser
 
 Use the **Playwright MCP server** (`mcp__playwright__*`). Do not write or run Playwright scripts
-here — deterministic Playwright is a separate, later capability with a different purpose
-(`docs/product-decisions.md` §7).
+here — deterministic Playwright is a separate capability with a different purpose, built by the
+`automate-test-cases` skill (`docs/product-decisions.md` §7, §7.1).
 
 Start from a **clean session** for each case that depends on authentication state. A residual
 session silently invalidates login, logout and lockout cases.

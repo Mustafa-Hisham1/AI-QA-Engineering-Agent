@@ -10,12 +10,21 @@
   "scripts": {
     "ado:check": "node src/cli/check-connection.ts",
     "story:read": "node src/cli/read-story.ts",
+    "api:read": "node src/cli/api-read.ts",
+    "analysis:preflight": "node src/cli/analysis-preflight.ts",
     "testcases:publish": "node src/cli/publish-test-cases.ts",
+    "testcases:check": "node src/cli/check-test-cases.ts",
     "bug:publish": "node src/cli/publish-bug.ts",
+    "automation:scope": "node src/cli/automation-scope.ts",
+    "automation:list": "node src/cli/run-automation.ts --list",
+    "automation:test": "node src/cli/run-automation.ts",
+    "automation:report": "node src/cli/automation-report.ts",
+    "automation:verify-artifacts": "node src/cli/verify-automation-artifacts.ts",
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.0",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2"
   }

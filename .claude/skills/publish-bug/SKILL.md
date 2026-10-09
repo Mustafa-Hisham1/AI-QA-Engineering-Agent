@@ -39,6 +39,12 @@ terminology.
 The argument is `$ARGUMENTS` — a path to a Bug Candidate file, or enough context to find one
 under `docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/bug-candidates/`.
 
+**Automation Bug Candidates** live in the run's HTML report directory,
+`.artifacts/reports/<KEY>/RUN-<NNN>/bug-candidates/BUG-NNN.md` (`docs/product-decisions.md`
+§7.2); `<KEY>` in that path names the project. Their `PRODUCT_BUG` classification is
+**automatic and provisional** — the human's review must confirm it explicitly (a stale locator is
+a `TEST_SCRIPT_ISSUE`, not a Bug), and nothing about an automated run counts as that review.
+
 If it is missing or ambiguous, **ask and stop.** Never guess which Bug is being published — a
 wrong guess files someone else's defect under the wrong story.
 

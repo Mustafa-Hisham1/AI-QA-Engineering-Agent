@@ -1,7 +1,7 @@
 ---
 name: write-test-cases
 description: Generate Test Cases for an analyzed User Story from its local Requirement Analysis and confirmed decisions, then AI self-review them into docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md. Use when asked to write, generate, or regenerate the test cases for a User Story by ID. Takes the User Story ID as its argument.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git diff:*), Bash(git status:*), Bash(grep:*)
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git diff:*), Bash(git status:*), Bash(grep:*), Bash(npm run testcases:check:*)
 ---
 
 # Write Test Cases for a User Story
@@ -50,7 +50,9 @@ If no ID was supplied, ask for one and stop. Do not guess an ID.
 - **Do not publish.** Creating these as children of the User Story in Azure DevOps is a later
   step and needs explicit human approval immediately before that write.
 - **Do not approve.** You may set `AI-Reviewed`; only an explicit human statement makes a test
-  case `Approved`.
+  case `Approved`. A `Need Automation` value of `Yes` is **not** approval either (Step 6a).
+- **Do not automate.** `Need Automation` records a scope decision for a later phase. This skill
+  writes no automation plan and no automation code.
 
 ---
 
@@ -91,7 +93,10 @@ If `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md` already exists, compar
 fingerprint** with the one in the analysis's provenance table:
 
 - **Fingerprints match and no decision is newer than the artifact** → do not regenerate. Report
-  that the set is current, with its case count and status breakdown, and stop.
+  that the set is current, with its case count, status breakdown and `Need Automation` Yes/No
+  counts, and stop. **Exception:** if any case has no `Need Automation` row (an artifact generated
+  before the field existed), add that row to those cases **only** — recommend per Step 6a, record
+  the rationale in the self-review record, and change nothing else.
 - **Fingerprints differ** → the requirement changed. Treat this as an **update**: keep every
   existing Test Case ID stable, revise the affected cases, add new ones with new IDs, and mark
   what changed and why. **Never renumber.** A published Azure DevOps ID or an approval already
@@ -99,6 +104,21 @@ fingerprint** with the one in the analysis's provenance table:
 - **Human-set statuses (`Approved`, `Needs-Changes`, `Rejected`) and recorded Azure DevOps IDs
   must survive an update untouched.** Never reset an `Approved` case to `AI-Reviewed` because
   you rewrote its neighbour.
+- **Every existing `Need Automation` value survives an update untouched**, whoever set it. The
+  file cannot tell a human edit from your own earlier recommendation, so treat every recorded
+  value as human-reviewed. If your fresh assessment disagrees, say so in the self-review record's
+  automation table; **never overwrite the cell**. Only a case with no value yet gets a new
+  recommendation.
+
+**Before rewriting an existing artifact, snapshot it:**
+
+```
+npm run testcases:check -- <ID> --project <KEY> --snapshot
+```
+
+This saves the current file, human edits included, as `test-cases.previous.md` beside it
+(gitignored). Step 8 compares the regenerated artifact against it. Skip the snapshot only for a
+first generation.
 
 ## Step 4 — Determine scope and title fields
 
@@ -157,6 +177,7 @@ Every case carries every field from `docs/product-decisions.md` §3:
 | Decisions Applied | The `[D]` decision IDs that govern this case, or `—` |
 | Azure DevOps ID | `—` until published |
 | Review/Lifecycle Status | `AI-Reviewed` after your self-review — never `Approved` |
+| Need Automation | `Yes` or `No` — your recommendation per Step 6a; a human may change it |
 | Precondition | The state the case needs, and how to reach it |
 | Test Data | Scenario-specific values, per the rules below |
 | Steps | Numbered, with an **Expected Result per step** — the agent executes step by step |
@@ -195,6 +216,50 @@ Rules that decide whether the set is trustworthy:
    cases; record the requirements that only a lower layer can verify as a known gap instead of
    dropping them.
 
+## Step 6a — Recommend `Need Automation` for every case
+
+Every case gets a `Need Automation` row, placed directly after `Review/Lifecycle Status`:
+
+```
+| Need Automation | Yes |
+```
+
+Exactly `Yes` or `No`; the parser rejects anything else (`docs/product-decisions.md` §6.3).
+
+- **`Yes`**: the case should be automated in the future automation phase.
+- **`No`**: the case should stay manual.
+
+**Decide per case, on its merits.** Weigh all four criteria, and write the reasoning down (Step 8):
+
+| Criterion | Ask |
+|---|---|
+| **Feasibility** | Can a deterministic Playwright script drive and observe every step? Or does it need an OTP, a CAPTCHA, a real mailbox, a physical device, a human judgement, or access the automation will not have? |
+| **Reliability / determinism** | Will it give the same verdict every run? Or does it depend on wall-clock waits, shared finite allowances (lockout counters), third-party timing, or data other cases mutate? |
+| **Regression value** | Does it protect behaviour that is likely to break and costly to miss (a main flow, a validation rule, a security property)? Or is it a one-off check of static content? |
+| **Maintainability** | Will the script survive ordinary UI change? Or does it assert layout, styling or wording so tightly that it breaks on every release? |
+
+Guidance, not rules — the four criteria decide:
+
+- **Observation-only cases are `No`.** They exist to record an undecided behaviour for a human;
+  an automated script has nothing to assert.
+- **A case is usually `No` when its prerequisite needs a long real-time wait, a one-shot state,
+  or an external channel the automation cannot reach**, unless the project's environment
+  provides a documented way around it.
+- **Main positive flows and deterministic validation rules are usually `Yes`.** That is where
+  automated regression pays for itself.
+- **Do not mark every case `Yes`.** A set that is all `Yes` or all `No` almost always means the
+  criteria were not applied. If it truly holds, justify it explicitly in the self-review.
+
+**`Need Automation` is independent of every other field.** Never derive it from, or let it drive,
+`Review/Lifecycle Status`, Test Type, scope, or publication. `Yes` does **not** mean approved;
+`Approved` does **not** mean `Yes`; a `Rejected` case keeps whatever value it has. The automation
+phase takes its scope from the value in the file **after human review**. The human may change any
+value, and from then on that value wins over your recommendation (Step 3).
+
+**No project-specific rule belongs here.** If a project's environment makes a class of case
+automatable or not (a test hook for OTP, for example), that fact lives in the project's
+`profile.md`. Read it there and cite it in the rationale.
+
 ## Step 7 — Write the artifact
 
 Write `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md`, structured so it stays editable and so the
@@ -204,8 +269,9 @@ publishing step can consume it case by case:
    **full content fingerprint** copied from the analysis, generation date, test scope, target
    environment, case count, and what has been published (nothing, at first). The fingerprint is
    what makes staleness detectable later; never omit or truncate it.
-2. **How to read this file** — the status vocabulary (`product-decisions.md` §6.1) and the
-   conventions the cases rely on.
+2. **How to read this file** — the status vocabulary (`product-decisions.md` §6.1); the
+   `Need Automation` values, stating that they are an AI recommendation for human review,
+   independent of the status (`product-decisions.md` §6.3); and the conventions the cases rely on.
 3. **Environment and test data prerequisites** — every account/data handle the cases reference,
    what it must be, which cases use it, and the practical constraints.
 4. **Coverage map** — requirement → test case IDs, plus open questions → the cases that observe
@@ -238,26 +304,46 @@ Check at least:
 - **Boundaries** — two-sided, not one-sided.
 - **Independence** — no case relying on another's residue.
 - **Observability** — no assertion the UI cannot verify.
-- **Field completeness and title convention** — on every case.
+- **Field completeness and title convention** — on every case, including `Need Automation`.
+- **Need Automation** — every case has `Yes` or `No`, decided on the four Step 6a criteria rather
+  than defaulted, and every value that existed before this run is unchanged.
 - **Secrets** — none.
 
 Record the review in the artifact: what was checked, **the corrections the review produced**, the
-known limitations of the set, and the verdict. A self-review that reports no findings is not a
+known limitations of the set, and the verdict. Include an **automation recommendation table** with
+one row per case: Test Case ID, your recommendation, the value in the artifact, and a one-line
+reason naming the deciding criteria. Where the artifact keeps an existing value that differs from
+your recommendation, say so in that row. The value already in the artifact stands. A self-review that reports no findings is not a
 review — if nothing needed changing, say what you checked that made you confident.
 
 Set every case's status to `AI-Reviewed`. **Never `Approved`.**
+
+Then run the check, and fix the artifact until it passes:
+
+```
+npm run testcases:check -- <ID> --project <KEY>
+```
+
+The check parses the artifact strictly and fails if any case lacks `Need Automation`. When a
+snapshot from Step 3 exists, it also fails on any Test Case ID, Azure DevOps ID, human-set status
+or `Need Automation` value the regeneration lost. Restore a lost value from
+`test-cases.previous.md`, and never edit the snapshot to make the check pass. A clean check
+removes the snapshot.
 
 ## Step 9 — Report
 
 Report briefly:
 
 1. How many test cases were generated, and the breakdown by coverage kind or requirement area.
+   Include the `Need Automation` split (Yes / No), and say it is a recommendation for the human
+   to review, not a decision.
 2. Where the artifact was saved.
 3. Which confirmed decisions governed the expected results.
 4. **Requirements deliberately not covered**, with the reason for each.
 5. **Observation-only cases** and the open question each will answer.
 6. Cases likely to be **BLOCKED** on execution, and what they need.
 7. The self-review result, including the corrections it produced.
+8. The `npm run testcases:check` result.
 
 Then update `CLAUDE.md` only if something genuinely project-level changed — a new capability, a
 new invariant, a new artifact type, or a settled open item. **Never put requirement detail in
@@ -270,4 +356,4 @@ that turned out to be wrong — update the affected `SKILL.md`, `CLAUDE.md`, and
 `docs/product-decisions.md` **now**, without asking. Generating test cases changes none of them.
 
 Do not commit. Do not touch Azure DevOps. Stop and wait for human review — the human names which
-cases are approved, rejected, or need changes.
+cases are approved, rejected, or need changes, and may change any `Need Automation` value.

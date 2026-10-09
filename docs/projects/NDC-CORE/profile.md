@@ -33,6 +33,7 @@ this one. Nothing here may weaken a rule defined there.
 | Title Project Token | TBD |
 | Allowed Environments | **None configured** |
 | Environment Label Variable | APP_ENV |
+| Automation Base URL Variable | TBD |
 | Artifact Root | docs/projects/NDC-CORE |
 
 ## Environments

@@ -242,6 +242,76 @@ export function readProfileSettings(project: ActiveProject): ReadonlyMap<string,
   return settings;
 }
 
+// ---------------------------------------------------------------------------
+// Test-data handles
+//
+// One definition of "a handle", shared by the profile-drift suite and by the
+// automation fixtures, so "declared in the profile" cannot mean two different
+// things in two places.
+// ---------------------------------------------------------------------------
+
+/**
+ * A test-data handle: SCREAMING_SNAKE_CASE with at least one underscore, inside
+ * backticks.
+ *
+ * The underscore requirement is what separates a handle from the other
+ * all-caps tokens that legitimately appear in prose — `POST`, `PASS`, `BLOCKED`
+ * — without needing a stop-list that would rot.
+ */
+const HANDLE = /`([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)`/g;
+
+/** Handle-shaped tokens that are vocabulary, not test data. */
+const NOT_HANDLES = new Set([
+  // Failure classifications (docs/product-decisions.md §9).
+  'PRODUCT_BUG',
+  'TEST_DATA_ISSUE',
+  'ENVIRONMENT_ISSUE',
+  'NETWORK_ISSUE',
+  'AUTHENTICATION_ISSUE',
+  'TEST_SCRIPT_ISSUE',
+  'PUBLISH_VERIFICATION_FAILED',
+  // Environment variable names. A profile names these; they are configuration,
+  // not test data, and are never resolved as handles.
+  'ADO_ORG_URL',
+  'ADO_PROJECT',
+  'ADO_PAT_READ',
+  'ADO_PAT_WRITE',
+  'ADO_TIMEOUT_MS',
+  'ADO_MAX_ATTEMPTS',
+  'QA_ACTIVE_PROJECT',
+]);
+
+/**
+ * Configuration variables a profile names — `APP_ENV`, `APP_<ENV>_<APP>_URL`.
+ *
+ * These are environment configuration, not test data: they hold a URL or a
+ * label, and no Test Case ever resolves one as a handle. Matching by prefix
+ * rather than by name keeps this working for a project whose variables nobody
+ * has written yet.
+ */
+const CONFIG_VAR = /^APP_|_URL$/;
+
+/** Every backticked handle in `text`, excluding vocabulary and configuration names. */
+export function findHandles(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const [, handle] of text.matchAll(HANDLE)) {
+    if (handle && !NOT_HANDLES.has(handle) && !CONFIG_VAR.test(handle)) found.add(handle);
+  }
+  return found;
+}
+
+/** The test-data handles a project's profile declares. Names only — never values. */
+export function readProfileHandles(project: ActiveProject): Set<string> {
+  try {
+    return findHandles(readFileSync(project.profilePath, 'utf8'));
+  } catch (error) {
+    throw new ProjectError(`Could not read the profile for "${project.key}".`, [
+      project.profilePath,
+      error instanceof Error ? error.message : String(error),
+    ]);
+  }
+}
+
 /** Renders the active project for command output. Never prints secrets. */
 export function describeActiveProject(project: ActiveProject): string {
   const via = {

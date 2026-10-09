@@ -12,7 +12,15 @@
 
 import { readFileSync, writeFileSync } from 'node:fs';
 
-import { isReviewStatus, type ReviewStatus, type TestCaseArtifact, type TestCaseRecord, type TestCaseStep } from './model.ts';
+import {
+  isNeedAutomation,
+  isReviewStatus,
+  type NeedAutomation,
+  type ReviewStatus,
+  type TestCaseArtifact,
+  type TestCaseRecord,
+  type TestCaseStep,
+} from './model.ts';
 
 /** Raised for a malformed artifact. Distinct from AdoError: nothing external failed. */
 export class ArtifactError extends Error {
@@ -63,6 +71,18 @@ const METADATA_KEYS = {
   'Review/Lifecycle Status': 'status',
 } as const;
 
+/**
+ * Metadata keys read when present. `Need Automation` is optional only so that
+ * artifacts generated before it existed still parse — and still publish and
+ * verify. `/write-test-cases` writes it on every case it generates, and
+ * `findCasesWithoutAutomationDecision` reports any case that lacks it.
+ */
+const OPTIONAL_METADATA_KEYS = ['Need Automation'] as const;
+
+function isMetadataKey(key: string): boolean {
+  return key in METADATA_KEYS || (OPTIONAL_METADATA_KEYS as readonly string[]).includes(key);
+}
+
 /** Splits `{PROJECT} / {MODULE} / {FEATURE}` into its three fields. */
 function splitScope(value: string, localId: string): { project: string; module: string; featurePage: string } {
   const parts = value.split('/').map((part) => part.trim());
@@ -101,6 +121,24 @@ function parseStatus(value: string, localId: string): ReviewStatus {
   if (!isReviewStatus(cleaned)) {
     throw new ArtifactError(`${localId}: unknown Review/Lifecycle Status "${cleaned}".`, [
       'Allowed values are defined in docs/product-decisions.md §6.1.',
+    ]);
+  }
+  return cleaned;
+}
+
+/**
+ * Parses the Need Automation cell. Absent row -> null (no decision recorded).
+ * A present row must say exactly `Yes` or `No`: a half-edited cell is not a
+ * decision, and guessing one would put a case in or out of automation scope
+ * without anyone having chosen it.
+ */
+function parseNeedAutomation(value: string | undefined, localId: string): NeedAutomation | null {
+  if (value === undefined) return null;
+
+  const cleaned = cleanCell(value);
+  if (!isNeedAutomation(cleaned)) {
+    throw new ArtifactError(`${localId}: unknown Need Automation value "${cleaned}".`, [
+      'Allowed values are "Yes" and "No" (docs/product-decisions.md §6.3).',
     ]);
   }
   return cleaned;
@@ -169,6 +207,7 @@ function finaliseCase(draft: CaseDraft): TestCaseRecord {
     decisionsApplied: cleanCell(draft.metadata.get('Decisions Applied')!),
     adoId: parseAdoId(draft.metadata.get('Azure DevOps ID')!, localId),
     status: parseStatus(draft.metadata.get('Review/Lifecycle Status')!, localId),
+    needAutomation: parseNeedAutomation(draft.metadata.get('Need Automation'), localId),
     precondition: draft.precondition,
     testData: draft.testData,
     steps: draft.steps,
@@ -263,7 +302,7 @@ export function parseArtifact(filePath: string, storyId: number): TestCaseArtifa
       const row = METADATA_ROW.exec(line);
       if (row) {
         const key = row[1]!.trim();
-        if (key in METADATA_KEYS) {
+        if (isMetadataKey(key)) {
           draft.metadata.set(key, row[2]!);
         }
       }

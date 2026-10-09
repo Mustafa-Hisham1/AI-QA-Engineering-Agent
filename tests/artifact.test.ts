@@ -78,6 +78,7 @@ test('parseArtifact maps every metadata field of a published case', () => {
   strictEqual(first!.decisionsApplied, '—');
   strictEqual(first!.adoId, 55294);
   strictEqual(first!.status, 'Published');
+  strictEqual(first!.needAutomation, 'Yes');
 });
 
 test('parseArtifact reads an unpublished case as adoId null', () => {
@@ -86,6 +87,51 @@ test('parseArtifact reads an unpublished case as adoId null', () => {
   strictEqual(second!.adoId, null);
   strictEqual(second!.status, 'Approved');
   strictEqual(second!.decisionsApplied, 'D-01');
+  // Approved and not to be automated: approval does not imply automation.
+  strictEqual(second!.needAutomation, 'No');
+});
+
+test('parseArtifact reads an artifact without Need Automation as undecided, not as Yes or No', () => {
+  // Artifacts generated before the field existed must still parse, publish and
+  // verify. Their cases carry no decision — null, never an implied value.
+  const text = readFileSync(FIXTURE, 'utf8').replace(/^\| Need Automation \|.*\r?\n/gm, '');
+  ok(!text.includes('Need Automation'));
+
+  const cases = parseArtifact(scratchFile(text), 99001).testCases;
+
+  deepStrictEqual(cases.map((c) => c.needAutomation), [null, null]);
+  deepStrictEqual(cases.map((c) => c.adoId), [55294, null]);
+});
+
+test('parseArtifact rejects a Need Automation value other than Yes or No', () => {
+  for (const invalid of ['Maybe', 'yes', 'Y', 'TRUE', '—', '']) {
+    const path = fixtureWithReplacement('| Need Automation | Yes |', `| Need Automation | ${invalid} |`);
+
+    throws(
+      () => parseArtifact(path, 99001),
+      (error: unknown) => {
+        ok(error instanceof ArtifactError);
+        ok(error.message.includes('unknown Need Automation value'), `"${invalid}" must be rejected`);
+        return true;
+      },
+    );
+  }
+});
+
+test('parseArtifact accepts Need Automation regardless of Review/Lifecycle Status', () => {
+  // The two fields are independent: neither constrains nor implies the other.
+  for (const status of ['Draft', 'AI-Reviewed', 'Needs-Changes', 'Approved', 'Rejected']) {
+    for (const value of ['Yes', 'No']) {
+      const text = readFileSync(FIXTURE, 'utf8')
+        .replace('| Review/Lifecycle Status | Approved |', `| Review/Lifecycle Status | ${status} |`)
+        .replace('| Need Automation | No |', `| Need Automation | ${value} |`);
+
+      const [, second] = parseArtifact(scratchFile(text), 99001).testCases;
+
+      strictEqual(second!.status, status);
+      strictEqual(second!.needAutomation, value);
+    }
+  }
 });
 
 test('parseArtifact captures precondition, test data, steps and notes', () => {
@@ -220,4 +266,16 @@ test('recordPublishedId writes the ID back and sets the status to Published', ()
   // case would re-point an already-published item at different content.
   strictEqual(first!.adoId, 55294);
   strictEqual(first!.status, 'Published');
+});
+
+test('recordPublishedId leaves Need Automation untouched', () => {
+  // Publishing changes the status; it must not change the automation decision.
+  const path = scratchFile(readFileSync(FIXTURE, 'utf8'));
+
+  recordPublishedId(path, 'TC-99001-002', 55700);
+
+  const [first, second] = parseArtifact(path, 99001).testCases;
+  strictEqual(second!.status, 'Published');
+  strictEqual(second!.needAutomation, 'No');
+  strictEqual(first!.needAutomation, 'Yes');
 });

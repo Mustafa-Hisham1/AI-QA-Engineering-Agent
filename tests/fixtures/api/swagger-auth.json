@@ -1,0 +1,18 @@
+{
+  "swagger": "2.0",
+  "info": { "title": "DEMO Legacy Auth", "version": "0.9" },
+  "securityDefinitions": { "apiKey": { "type": "apiKey", "in": "header", "name": "X-Api-Key" } },
+  "security": [{ "apiKey": [] }],
+  "paths": {
+    "/login": {
+      "post": {
+        "operationId": "legacyLogin",
+        "parameters": [
+          { "name": "body", "in": "body", "required": true, "schema": { "type": "object", "required": ["username"], "properties": { "username": { "type": "string", "maxLength": 50 }, "password": { "type": "string" } } } },
+          { "name": "lang", "in": "query", "type": "string", "enum": ["en", "ar"] }
+        ],
+        "responses": { "200": { "description": "OK", "schema": { "type": "object", "properties": { "token": { "type": "string" } } } }, "400": { "description": "Validation error" } }
+      }
+    }
+  }
+}

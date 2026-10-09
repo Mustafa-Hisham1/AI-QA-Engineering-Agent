@@ -25,6 +25,17 @@ dist/
 evidence/
 reports/
 
+# Pre-regeneration snapshot written by `npm run testcases:check -- --snapshot`.
+# Removed by a clean check; kept on a failed one so lost values can be restored.
+test-cases.previous.md
+
+# Playwright defaults, should anything run outside playwright.config.ts. Real
+# runs write under .artifacts/ (src/automation/artifact-policy.ts). Failure
+# output can describe the page under test, so it is never committed.
+test-results/
+playwright-report/
+blob-report/
+
 # ---------------------------------------------------------------------------
 # OS / editor
 # ---------------------------------------------------------------------------

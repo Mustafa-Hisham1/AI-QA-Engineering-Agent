@@ -26,59 +26,19 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { listProjectKeys, readProfileSettings, resolveActiveProject } from '../src/projects/active-project.ts';
+import {
+  findHandles,
+  listProjectKeys,
+  readProfileHandles,
+  readProfileSettings,
+  resolveActiveProject,
+} from '../src/projects/active-project.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PROJECTS_ROOT = join(REPO_ROOT, 'docs', 'projects');
 
-/**
- * A test-data handle: SCREAMING_SNAKE_CASE with at least one underscore, inside
- * backticks.
- *
- * The underscore requirement is what separates a handle from the other
- * all-caps tokens that legitimately appear in prose — `POST`, `PASS`, `BLOCKED`
- * — without needing a stop-list that would rot.
- */
-const HANDLE = /`([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)`/g;
-
-/** Handle-shaped tokens that are vocabulary, not test data. */
-const NOT_HANDLES = new Set([
-  // Failure classifications (docs/product-decisions.md §9).
-  'PRODUCT_BUG',
-  'TEST_DATA_ISSUE',
-  'ENVIRONMENT_ISSUE',
-  'NETWORK_ISSUE',
-  'AUTHENTICATION_ISSUE',
-  'TEST_SCRIPT_ISSUE',
-  'PUBLISH_VERIFICATION_FAILED',
-  // Environment variable names. A profile names these; they are configuration,
-  // not test data, and are never resolved as handles.
-  'ADO_ORG_URL',
-  'ADO_PROJECT',
-  'ADO_PAT_READ',
-  'ADO_PAT_WRITE',
-  'ADO_TIMEOUT_MS',
-  'ADO_MAX_ATTEMPTS',
-  'QA_ACTIVE_PROJECT',
-]);
-
-/**
- * Configuration variables a profile names — `APP_ENV`, `APP_<ENV>_<APP>_URL`.
- *
- * These are environment configuration, not test data: they hold a URL or a
- * label, and no Test Case ever resolves one as a handle. Matching by prefix
- * rather than by name keeps this working for a project whose variables nobody
- * has written yet.
- */
-const CONFIG_VAR = /^APP_|_URL$/;
-
-function matchHandles(text: string): Set<string> {
-  const found = new Set<string>();
-  for (const [, handle] of text.matchAll(HANDLE)) {
-    if (handle && !NOT_HANDLES.has(handle) && !CONFIG_VAR.test(handle)) found.add(handle);
-  }
-  return found;
-}
+// What counts as a handle is defined once, in src/projects/active-project.ts,
+// and shared with the automation fixtures.
 
 /**
  * Extracts handles from the `**Test Data**` blocks of a Test Case artifact.
@@ -100,7 +60,7 @@ function handlesUsedInArtifact(filePath: string): Set<string> {
     }
     // Any other bold section heading closes the block.
     if (inTestData && line.startsWith('**')) inTestData = false;
-    if (inTestData) for (const handle of matchHandles(line)) used.add(handle);
+    if (inTestData) for (const handle of findHandles(line)) used.add(handle);
   }
 
   return used;
@@ -117,10 +77,6 @@ function testCaseArtifacts(projectRoot: string): { storyDir: string; path: strin
     .filter((entry) => existsSync(entry.path));
 }
 
-/** Handles the project's profile declares. */
-function handlesDeclaredInProfile(profilePath: string): Set<string> {
-  return matchHandles(readFileSync(profilePath, 'utf8'));
-}
 
 const PROJECT_KEYS = listProjectKeys(PROJECTS_ROOT);
 
@@ -140,7 +96,7 @@ for (const key of PROJECT_KEYS) {
   });
 
   test(`${key}: every handle used by a Test Case is declared in the profile`, () => {
-    const declared = handlesDeclaredInProfile(project.profilePath);
+    const declared = readProfileHandles(project);
     const artifacts = testCaseArtifacts(project.root);
 
     const undeclared = new Map<string, string[]>();
@@ -172,7 +128,7 @@ for (const key of PROJECT_KEYS) {
   });
 
   test(`${key}: handles declared but not yet used are reported, not failed`, () => {
-    const declared = handlesDeclaredInProfile(project.profilePath);
+    const declared = readProfileHandles(project);
     const used = new Set<string>();
     for (const { path } of testCaseArtifacts(project.root)) {
       for (const handle of handlesUsedInArtifact(path)) used.add(handle);

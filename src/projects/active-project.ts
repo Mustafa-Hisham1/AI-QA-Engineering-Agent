@@ -184,8 +184,9 @@ export function requirementsDirFor(project: ActiveProject, storyId: number): str
   return joinPosix(project.root, 'requirements', `US-${storyId}`);
 }
 
+/** The story's `test-cases.csv` — the source of truth for test-case content (§6.4). */
 export function testCasesPathFor(project: ActiveProject, storyId: number): string {
-  return joinPosix(project.root, 'test-cases', `US-${storyId}`, 'test-cases.md');
+  return joinPosix(project.root, 'test-cases', `US-${storyId}`, 'test-cases.csv');
 }
 
 export function executionsDirFor(project: ActiveProject, storyId: number): string {
@@ -304,6 +305,57 @@ export function findHandles(text: string): Set<string> {
 export function readProfileHandles(project: ActiveProject): Set<string> {
   try {
     return findHandles(readFileSync(project.profilePath, 'utf8'));
+  } catch (error) {
+    throw new ProjectError(`Could not read the profile for "${project.key}".`, [
+      project.profilePath,
+      error instanceof Error ? error.message : String(error),
+    ]);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Automation sub-modules
+//
+// Where a project's Module hierarchy is deeper than the Test Case's Module
+// field (NBO: Company > Operating Country), the profile declares it in a table
+// headed `| Module | Sub-Module | Feature/Page Contains |`. Structure only — it
+// can relocate code and plans, never widen scope or relax a rule.
+// ---------------------------------------------------------------------------
+
+export interface ProfileSubModule {
+  readonly module: string;
+  readonly subModule: string;
+  readonly featureMatch: string;
+}
+
+/** Parses the sub-module table out of profile text. Pure; absent table -> none. */
+export function parseSubModuleTable(text: string): ProfileSubModule[] {
+  const found: ProfileSubModule[] = [];
+  let inTable = false;
+
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('|')) {
+      inTable = false;
+      continue;
+    }
+    const cells = trimmed.split('|').slice(1, -1).map((cell) => cleanValue(cell.trim()));
+    if (cells[0] === 'Module' && cells[1] === 'Sub-Module' && cells[2] === 'Feature/Page Contains') {
+      inTable = true;
+      continue;
+    }
+    if (!inTable || cells.every((cell) => /^:?-+:?$/.test(cell))) continue;
+    const [module, subModule, featureMatch] = cells;
+    if (module && subModule && featureMatch) found.push({ module, subModule, featureMatch });
+  }
+
+  return found;
+}
+
+/** The automation sub-modules the active project's profile declares. */
+export function readProfileSubModules(project: ActiveProject): ProfileSubModule[] {
+  try {
+    return parseSubModuleTable(readFileSync(project.profilePath, 'utf8'));
   } catch (error) {
     throw new ProjectError(`Could not read the profile for "${project.key}".`, [
       project.profilePath,

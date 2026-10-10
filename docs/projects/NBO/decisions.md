@@ -80,3 +80,4 @@ configuration, never from test case definitions.
 |---|---|---|
 | US 53717 — Login | D-01…D-12 | `requirements/US-53717/decisions.md` |
 | US 52860 — City | D-01…D-05 | `requirements/US-52860/decisions.md` |
+| US 52857 — Operating Country | D-01…D-17 | `requirements/US-52857/decisions.md` |

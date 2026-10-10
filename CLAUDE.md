@@ -82,24 +82,33 @@ progress lives in `docs/projects/<KEY>/state.md`.
 | Publishing Test Cases as children of a User Story | **Verified against real Azure DevOps, twice** | `/publish-test-cases <ID>` |
 | Manual web execution (Playwright MCP) | **Canary verified against a real app** | `/execute-test-cases <ID>` |
 | Web execution workflow | **Reusable skill, verified** — found a real defect | `/execute-test-cases <ID> [<TC-ID>…]` |
+| Manual execution HTML report (`manual-report.html`) and run policy | **Built and verified by tests** — strict record validation, isolation from the automation report, totals, evidence links, CSV untouched; a product bug never stops the run, only legitimate stop conditions do (37 tests). **Produced by a real manual run** — 51 cases against STG, 2 product-bug failures recorded and the run continued to completion | `npm run execution:report -- <ID> --project <KEY> [--run RUN-<NNN>]` |
+| **Bug Report** section in both reports, Bug Candidate dispositions (`Draft` / `Confirmed` / `Not a Bug`) | **Verified by tests** (18) and on a real run — US-52857 RUN-001 re-rendered with both candidates resolved as not a bug; its results and Execution Summary unchanged | `npm run execution:report -- <ID> --project <KEY> --run RUN-<NNN>` · `npm run automation:report -- --project <KEY>` |
 | Creating Bugs in Azure DevOps | **Verified against real Azure DevOps, twice** | `npm run bug:publish -- <input.json>` (dry run) |
 | Bug publishing workflow | **Reusable skill.** Duplicate refusal and post-create verification exercised | `/publish-bug <bug-candidate>` |
 | Post-create Bug verification | **Verified** — **12 checks**; Description, Repro Steps and System Info asserted non-empty **separately** | `npm run bug:publish -- <input.json> --verify-only <id>` |
 | Disjoint Bug field mapping | **Verified against real Azure DevOps** — read back and checked phrase by phrase | `docs/projects/<KEY>/executions/` |
 | Multi-project support (profiles + active project) | **Verified** — resolution, refusal-to-guess and path scoping under test | `npm test` |
-| Automated tests (parser, Bug builders, active project, profile drift, regeneration, automation, reporting, analysis sources) | **Verified** — 195 tests | `npm test` |
+| Automated tests (parser, CSV codec + CSV-first store, Bug builders, active project, profile drift, regeneration, automation, reporting, analysis sources, session cleanup) | **Verified** — 311 tests (310 pass; `analysis-sources` 11b fails because the working tree has deleted `requirements/US-53717/requirement-analysis.md`) | `npm test` |
 | Optional analysis sources — API specification, UI exploration (`/analyze-story`) | **Preflight and API reader verified** by tests and against the real US-53717 analysis (backward compatible). **No analysis has yet used an API spec or explored the UI** — none supplied, and `.env` has no app environment | `npm run analysis:preflight -- <ID> --project <KEY>` |
-| Need Automation decision per Test Case (automation Phase 1) | **Parser and regeneration check verified** by tests and against a real artifact. The Skill instructions are written but **not yet exercised by a `/write-test-cases` run** | `npm run testcases:check -- <ID> --project <KEY>` |
-| Playwright framework (automation Phase 2) | **Foundation verified offline** — config loads, project resolution and refusal-to-guess, discovery by `@TC` tag, environment guard refuses an unset label and PROD. **No spec generated yet**: no case is in scope (no Need Automation values) and `.env` has no app environment | `npm run automation:list -- --project <KEY>` |
+| Need Automation decision per Test Case (automation Phase 1) | **Verified** — parser and regeneration check by tests; Skill exercised by the US-52857 `/write-test-cases` run (52 cases, 47 Yes / 5 No) | `npm run testcases:check -- <ID> --project <KEY>` |
+| **CSV as the single source of truth for test cases** (`test-cases.csv` + rendered `test-cases.md`) | **Verified** — all 4 existing stories migrated losslessly (139 NBO cases + 4 synthetic); publisher `--verify` and dry run read the CSV against real Azure DevOps (read-only); automation scope and the HTML report read the CSV; contract under test | `npm run testcases:check -- <ID> --project <KEY>` |
+| Playwright framework (automation Phase 2) | **Verified against STG** — config, project resolution, discovery by `@TC` tag, environment guard, sub-module paths (§7.1.2), recorded observations in the report (§7.2). **51 specs exist** (NBO US-52857, `automation/NBO/Company/Operating-Country/`); 20 have passed once on STG | `npm run automation:list -- --project <KEY>` |
 | Automation case selection | **Verified** by tests and against a real artifact (0 of 52 in scope, all undecided) | `npm run automation:scope -- <ID> --project <KEY>` |
 | Playwright artifact safety | **Verified** — found three leak paths of typed passwords and closed them (§7.1.1); the check now also scans the HTML report and Bug Candidates; passes | `npm run automation:verify-artifacts` |
-| Automation workflow | **Reusable skill, not yet exercised** — nothing is in scope yet | `/automate-test-cases <ID>` |
+| Automation workflow | **Reusable skill, exercised once** — US-52857: plan approved, code for all 51 cases generated; first full run invalidated by abandoned sessions (see below) | `/automate-test-cases <ID>` |
+| Session cleanup after every automated test (§7.1.3) | **Verified on STG** — logout API with each session's own token and `allSessions: false`; every session in 9 cases (passing, failing, 2- and 3-account) answered HTTP 200 and its old token was then rejected (401); next login succeeded. 14 unit tests | `npm test` · `npm run automation:test -- --project <KEY> --grep @TC-<id>` |
 | HTML execution report (automation Phase 3) | **Verified end to end on the synthetic artifact-check project** (3 failures + 1 pass, 2 Bug Candidates, screenshots, a video for every test) and by tests. **Not yet produced by a real project run** — no spec exists | `npm run automation:report -- --project <KEY>` |
 | ADO Test Runs, CI for automation, publishing automation Bugs | Not built | — |
 
 **Execution never writes to Azure DevOps.** No Test Run, no Test Result, no Bug is
 created by execution. A failure classified `PRODUCT_BUG` becomes a **local Bug
-Candidate** that stops for human review; every other classification
+Candidate** for human review — and **the run continues**: a product bug never stops
+a manual run or skips another case (`docs/product-decisions.md` §10.5). A run stops
+only when continuing is unsafe or impossible — `ENVIRONMENT_UNAVAILABLE`,
+`AUTHENTICATION_BROKEN`, `BLOCKING_ISSUE`, `DESTRUCTIVE_RISK` — keeping every result
+so far and still writing its reports; the rule is code (`src/execution/run-policy.ts`)
+and `execution:report` refuses a record that breaks it. Every other classification
 (`TEST_DATA_ISSUE`, `ENVIRONMENT_ISSUE`, `NETWORK_ISSUE`, `AUTHENTICATION_ISSUE`,
 `TEST_SCRIPT_ISSUE`, `UNKNOWN`) is recorded with evidence and raises no bug.
 
@@ -142,6 +151,15 @@ back and checked field by field; a mismatch is reported as
 **`PUBLISH_VERIFICATION_FAILED`** with the Bug ID preserved, and **never** by
 creating a second Bug.
 
+**Every automated test ends every session it opened, passed or failed**
+(`docs/product-decisions.md` §7.1.3) — the `endSessions` auto fixture, fed by the
+project's login Page Object, through the **application's logout API** with that
+session's own token and `allSessions: false`, then confirms the old token is
+rejected (401). Tokens are captured from the app's own requests, held in memory,
+registered for redaction, never logged. Clearing cookies or storage is **not** a
+logout: sessions live server-side (Redis); the first full US-52857 run abandoned
+them, reached STG's 15-session cap, and every later login failed.
+
 **Two execution rules the canary proved, the hard way:**
 - **Wait for the app to settle before judging a result.** After submitting login
   the page was still on `/login`; navigation completed a moment later. Reading the
@@ -164,17 +182,32 @@ automation runs and after every Playwright upgrade.**
 **Automation scope is code, not judgement:** Need Automation = `Yes` **and**
 `Approved`/`Published`. `No` and undecided are excluded, an unapproved `Yes` is
 refused, every exclusion is reported, and the automation skill never edits
-`test-cases.md`. A `Yes` case that cannot be automated is recorded as
+`test-cases.csv` or `test-cases.md`. A `Yes` case that cannot be automated is recorded as
 `NOT AUTOMATED — <CATEGORY>`; its Need Automation stays `Yes`.
 
 **Every automated run writes an HTML execution report** (`docs/product-decisions.md`
-§7.2) at `.artifacts/reports/<KEY>/RUN-<NNN>/execution-report.html`, via a
-Playwright reporter — specs do nothing. Step actions and Expected Results come
+§7.2) at `.artifacts/reports/<KEY>/RUN-<NNN>/automation-report.html` (the history)
+**and** at `automation/<KEY>/<Module path>/automation-report.html` (the Module's
+latest run, attachments linked to the run directory, gitignored), via a
+Playwright reporter — specs do nothing. A test that never really ran (interrupted,
+or its worker died before any step) is `NOT RUN`, never FAIL. Step actions and Expected Results come
 from the Test Case artifact, IDs from the spec annotations; nothing is invented.
+A step whose Expected Result says "record …" is recorded by the spec as an
+`observation` annotation (`Step N: <text>`) and shown, sanitised, as
+`Recorded: …` under that step — never an assertion, never a status.
 Failure classification there is **automatic and provisional**. A `PRODUCT_BUG`
 on a traceable case becomes a **local Draft Bug Candidate**
-(`bug-candidates/BUG-NNN.md`) shown under *Bug Reports* — **automation never
+(`bug-candidates/BUG-NNN.md`) shown in the report's *Bug Report* section — **automation never
 creates an Azure DevOps Bug**; publishing stays `/publish-bug`, human-approved.
+
+**Both reports carry a "Bug Report" section** (`docs/product-decisions.md` §10.6), rendered by
+one shared component (`src/reporting/bug-report.ts`) from the Bug Candidates **of that run
+only**. A Bug Candidate is `Draft` until a **human** resolves it as `Confirmed` or
+`Not a Bug`, recorded as a `resolution` (disposition, who, when, decision, rationale) on the
+candidate. **A resolution never rewrites history:** the run's results, classifications and
+Execution Summary stay as executed; the candidate file keeps its original content and evidence
+under a Resolution section; a candidate resolved as not a bug is never passed to `/publish-bug`;
+a corrected expectation is proven only by a new run.
 Every Playwright string passes the shared sanitizer; attachments are an
 allow-list — failure screenshots and test videos, each copied only if it lies
 inside Playwright's output directory and its bytes really are PNG / WebM.
@@ -193,6 +226,19 @@ MCP-driven `/execute-test-cases` still records no video.
 **Publishing is idempotent.** Re-running the publisher creates nothing: it skips
 any case holding an Azure DevOps ID and matches the rest against the story's
 existing children by title.
+
+**Test cases live in CSV — the single source of truth** (`docs/product-decisions.md`
+§6.4). Every story has `test-cases.csv` (one row per case; the human reviews and
+edits it) and `test-cases.md` (a rendering of it plus narrative: provenance,
+prerequisites, coverage map, self-review). **Every consumer reads the CSV** through
+`src/testcases/store.ts` — publishing, execution, automation scope and reporting,
+checks. The Markdown is never read for case content; **if the two disagree, the
+CSV wins** and the Markdown is re-rendered (`npm run testcases:render`). Rendering
+never writes the CSV; the only code change ever made to it is the publisher's
+write-back of an Azure DevOps ID and `Published`, cell by cell. Human edits are
+never silently restored: `/write-test-cases` revises only affected rows, and
+`testcases:check` lists every case whose content changed. Agent-driven Skills read
+cases with `npm run testcases:show`, never by reading either file by eye.
 
 **The two workflows are deliberately separate skills.** Requirement analysis and
 test case generation have different inputs, different review gates, and different
@@ -351,11 +397,13 @@ commits.
 Generates the Test Case artifact for an **already analysed** User Story from the
 local Requirement Analysis, `decisions.md` and source snapshot, then performs the
 AI self-review and writes
-`docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md`. It **does not read Azure
+`docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv` — the source of truth — then
+renders `test-cases.md` from it (`npm run testcases:render`). It **does not read Azure
 DevOps at all** — if the analysis is missing it stops and points at
 `/analyze-story`. It never publishes, never approves, and never commits. On a
-re-run it keeps Test Case IDs, human-set statuses, recorded Azure DevOps IDs and
-every recorded **Need Automation** value stable, enforced by
+re-run it revises only the CSV rows a requirement change affects — never undoing a
+human CSV edit — and keeps Test Case IDs, human-set statuses, recorded Azure
+DevOps IDs and every recorded **Need Automation** value stable, enforced by
 `npm run testcases:check`. It writes an AI-recommended **Need Automation**
 (`Yes`/`No`) on every case for the human to review; it never builds automation.
 
@@ -394,8 +442,8 @@ classification and evidence into a **new**
 `docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/`. Narrow it to specific Test
 Case IDs, or run a single case alone. It **never writes to Azure DevOps**, never
 modifies a Test Case, never invents an Expected Result, and never commits. A
-failure classified `PRODUCT_BUG` produces a **local Bug Candidate and stops for
-human review**.
+failure classified `PRODUCT_BUG` produces a **local Bug Candidate for human
+review, and the run continues** with the next case (§10.5).
 
 ```
 /automate-test-cases <USER_STORY_ID> [<TC-ID> ...] [--project <KEY>]
@@ -432,8 +480,11 @@ npm run testcases:publish -- <ID> --project <KEY> --confirm  # writes (needs app
 npm run testcases:publish -- <ID> --project <KEY> --verify   # verify, writes nothing
 npm run testcases:publish -- <ID> --project <KEY> --confirm --limit 1   # canary
 
-npm run testcases:check -- <ID> --project <KEY> --snapshot   # before regenerating: save the artifact
-npm run testcases:check -- <ID> --project <KEY>              # after: nothing lost, every case has Need Automation
+npm run testcases:check -- <ID> --project <KEY> --snapshot   # before revising: save the CSV
+npm run testcases:check -- <ID> --project <KEY>              # after: CSV valid, Markdown in sync, nothing lost, Need Automation on every case
+npm run testcases:render -- <ID> --project <KEY>             # re-render test-cases.md from the CSV (never writes the CSV)
+npm run testcases:show -- <ID> [TC-ID …] --project <KEY> [--json]   # print cases from the CSV via the strict parser
+npm run testcases:migrate -- <ID> --project <KEY>            # once: legacy Markdown-only story -> CSV (lossless or nothing)
 
 npm run bug:publish -- <input.json>                    # DRY RUN + story-scoped duplicate check
 npm run bug:publish -- <input.json> --confirm          # publishes, then verifies
@@ -444,6 +495,7 @@ npm run automation:list -- --project <KEY> [--grep @TC-<id>]   # Playwright disc
 npm run automation:test -- --project <KEY> [--grep @TC-<id>]   # runs against the allowed environment; writes the HTML report
 npm run automation:report -- --project <KEY> [--run RUN-<NNN>]  # find (and re-render) a run's HTML report
 npm run automation:verify-artifacts                   # typed secrets must not reach Playwright output or the report
+npm run execution:report -- <ID> --project <KEY> [--run RUN-<NNN>]   # MANUAL run -> manual-report.html (latest run by default)
 
 npm test                     # node --test: parser, Bug builders, active project, profile drift, regeneration, automation, reporting, analysis
 npm run typecheck            # tsc --noEmit, strict (src/, automation/, playwright.config.ts)
@@ -462,11 +514,17 @@ by re-running.
 `testcases:publish` is **dry run by default** and the only script that can write to
 Azure DevOps. It requires `ADO_PAT_WRITE`; every other script works without it.
 
-`testcases:check` touches local files only. `--snapshot` copies the artifact to a
-gitignored `test-cases.previous.md` beside it. The check then exits **1** on a
-lost Test Case ID, Azure DevOps ID, human-set status or Need Automation value, or
-on a case without Need Automation; it keeps the snapshot on failure and removes it
-when the check passes.
+`testcases:check` touches local files only and never writes the CSV. It parses
+the CSV strictly and requires `test-cases.md` to match it case for case.
+`--snapshot` copies the CSV to a gitignored `test-cases.previous.csv` beside it.
+The check then exits **1** on Markdown drift, on a lost Test Case ID, Azure
+DevOps ID, human-set status or Need Automation value, or on a case without Need
+Automation, and lists every case whose content changed; it keeps the snapshot on
+failure and removes it when the check passes.
+
+`testcases:render` reads the CSV and rewrites only the generated block of
+`test-cases.md`, keeping its narrative verbatim. `testcases:migrate` refuses when
+a CSV exists and writes nothing unless every case round-trips exactly.
 
 `automation:list` / `automation:test` resolve the project like every other
 command, then run the **pinned** local Playwright with it pinned; every other
@@ -478,8 +536,19 @@ output — **no credentialed automation may run until it passes**. It drives the
 HTML report end to end on a synthetic project
 (`src/automation/artifact-check/projects/ARTIFACT-CHECK`) and scans it too.
 
-`automation:test` prints `Execution report: <path>` at the end of every run that
-executed at least one test. `automation:report` finds the latest (or a named)
+**Every manual run writes `manual-report.html`** (`docs/product-decisions.md` §10.4)
+in its own run directory, `docs/projects/<KEY>/executions/US-<id>/RUN-<NNN>/`, as
+the mandatory last step of `/execute-test-cases`: the Skill writes a structured
+`execution-results.json`, and `npm run execution:report` validates it strictly and
+renders the report. Same look as the automation report (shared presentation in
+`src/reporting/html.ts`), separate data and code; the manual report depends on no
+automation run. Totals are derived, never stored; the record names handles, never
+values, and is refused if it contains one. **The two reports never collide:**
+`manual-report.html` (MANUAL) vs `automation-report.html` (AUTOMATED), separate run
+roots, and each writer refuses a directory holding the other's report.
+
+`automation:test` prints `Execution report: <path>` (and `Module report: <path>` per
+Module) at the end of every run that executed at least one test. `automation:report` finds the latest (or a named)
 run's report and re-renders the HTML and Bug Candidates from its stored,
 already-sanitised `execution-results.json`; it never re-runs a test.
 
@@ -532,17 +601,29 @@ src/projects/     Active project resolution and per-project artifact paths.
                   active-project -> resolveActiveProject (explicit or STOP),
                                     profile reading, path helpers.
                   NO Azure DevOps knowledge, reads no credentials.
-src/testcases/    Test Case artifact handling with NO ADO knowledge.
+src/testcases/    Test Case handling with NO ADO knowledge (§6.4).
                   model -> TestCaseRecord, status + Need Automation vocabulary
-                  artifact -> strict parser + per-case ID/status write-back
-                  regeneration -> what a regeneration must preserve; behind
+                  csv -> RFC 4180 reader/writer, no dependencies
+                  csv-artifact -> the CSV schema: columns <-> TestCaseRecord
+                  artifact -> Markdown reader + the validation shared with
+                              the CSV (buildRecord)
+                  store -> THE entry point: loadTestCases (CSV), render
+                           Markdown, sync check, ID write-back, migration
+                  regeneration -> what a revision must preserve, and
+                                  which cases it changed; behind
                                   `testcases:check`
 src/automation/   Playwright framework. METHOD — project-agnostic, no ADO knowledge.
                   config -> env guard + handle resolution; the ONLY automation
                             module reading process.env (invariant 7)
                   fixtures -> the `test` every spec imports: appEnv, account(H),
                               dataValue(H), redactErrorContext (auto — runs
-                              every error through the sanitizer)
+                              every error through the sanitizer), endSessions
+                              (auto — logs out every session the test opened,
+                              passed or failed; §7.1.3)
+                  sessions -> registry of open sessions per test page; the
+                              login Page Object registers (token captured
+                              from the app's requests), switch + teardown end
+                              them through the project's logout API
                   sanitizer -> THE one credential sanitizer for Playwright
                                text: redact(), fill("…") args, ARIA values
                   scope -> Need Automation=Yes AND Approved/Published; plan and
@@ -565,21 +646,50 @@ src/automation/   Playwright framework. METHOD — project-agnostic, no ADO know
                   artifact-check/ -> the offline leak check: spec, config, and
                                      a synthetic ARTIFACT-CHECK project the
                                      report traces to
+src/reporting/    Presentation shared by the two QA reports — no data model.
+                  html -> stylesheet, badges, step table, evidence gallery,
+                          page shell
+                  report-files -> automation-report.html vs manual-report.html,
+                                  and the guard refusing the other's run dir
+                  bug-report -> the "Bug Report" section both reports render
+                                from their own run's Bug Candidates; status and
+                                resolution vocabulary (§10.6)
+src/execution/    MANUAL run reporting and run policy (§10.4, §10.5). No
+                  automation dependency.
+                  run-policy -> continue or stop after each case: a product bug
+                                never stops; only the four stop conditions do
+                  manual-results -> execution-results.json schema + strict
+                                    validation; derived totals and verdict
+                  manual-report -> renders and writes manual-report.html only
 src/text/         Content conversion with no ADO knowledge (HTML <-> Markdown).
 src/cli/          Human-facing entry points.
 automation/<KEY>/<Module>/
                   PROJECT automation code — it names one app's pages.
+                  <Module> may be <Module>/<Sub-Module> when the profile
+                  declares one (product-decisions §7.1.2), e.g.
+                  automation/NBO/Company/Operating-Country/.
                       pages/<Feature>Page.ts      locators + actions; no
                                                   assertions, data or credentials
                       tests/TC-<story>-NNN.spec.ts ONE Test Case per spec
+                      support/<name>.ts           shared run-time data + setup
+                                                  flows; actions only, no
+                                                  assertion, no credential
 .artifacts/reports/<KEY>/RUN-<nnn>/
                   HTML execution report per automated run. GITIGNORED,
-                  append-only. execution-report.html, execution-results.json,
-                  bug-candidates/BUG-NNN.md (local Drafts — never published
-                  automatically), attachments/ (<TC-ID>.png failure
+                  append-only. automation-report.html, execution-results.json,
+                  bug-candidates/BUG-NNN.md (local Drafts until a human
+                  resolves them — never published automatically),
+                  attachments/ (<TC-ID>.png failure
                   screenshots, <TC-ID>.webm videos of every test).
 tests/            node --test suites. Golden fixtures in tests/fixtures/.
-                  artifact.test.ts       strict parser + write-back
+                  artifact.test.ts       Markdown reader + shared validation
+                  csv.test.ts            RFC 4180 codec: quotes, commas,
+                                         multiline, BOM, refusals
+                  test-case-store.test.ts CSV-first contract: CSV wins,
+                                         render never writes the CSV, human
+                                         edits survive, write-back, migration,
+                                         consumers read the CSV, every real
+                                         story has both files in sync
                   bug.test.ts            the three DISJOINT Bug builders
                   active-project.test.ts resolution, refusal-to-guess, scoping
                   profile-drift.test.ts  every handle a Test Case uses must be
@@ -605,6 +715,15 @@ tests/            node --test suites. Golden fixtures in tests/fixtures/.
                                                  stated rules, read-only code
                   automation-code-safety.test.ts code rules + scan of every
                                                  file under automation/
+                  automation-sessions.test.ts    logout API contract (allSessions
+                                                 false, own token), pass, failure,
+                                                 switch, isolation, refused logout,
+                                                 token still valid afterwards
+                  bug-report.test.ts             the Bug Report section of BOTH
+                                                 reports: own-run data only,
+                                                 every field, dispositions,
+                                                 empty state, escaping, links,
+                                                 totals unchanged by resolution
 
 docs/product-decisions.md   METHOD — the full shared decision record.
 docs/bug-input.schema.md    METHOD — Bug publisher input schema.
@@ -637,32 +756,44 @@ docs/projects/<KEY>/        PROJECT KNOWLEDGE — one directory per project.
                                                 says *that* a requirement changed;
                                                 only this shows *what* changed.
                   test-cases/US-<id>/
-                      test-cases.md             The Test Case set: provenance +
+                      test-cases.csv            THE SOURCE OF TRUTH for test-
+                                                case content (§6.4): one row per
+                                                case. Humans review and edit it;
+                                                every consumer reads it. Test
+                                                Case IDs, human-set statuses,
+                                                published Azure DevOps IDs, Need
+                                                Automation values and human edits
+                                                survive every revision.
+                      test-cases.md             Rendering of the CSV inside the
+                                                generated-block markers, plus
+                                                narrative: provenance +
                                                 fingerprint, test data handles,
                                                 coverage map, deliberate
-                                                exclusions, the cases, rejected
-                                                cases, and the AI self-review
-                                                record. Regenerable — but Test
-                                                Case IDs, human-set statuses,
-                                                published Azure DevOps IDs and
-                                                Need Automation values must
-                                                survive regeneration.
-                      test-cases.previous.md    Pre-regeneration snapshot.
+                                                exclusions, AI self-review.
+                                                Re-render, never hand-edit cases.
+                      test-cases.previous.csv   Pre-revision snapshot.
                                                 GITIGNORED; removed by a clean
                                                 `testcases:check`.
-                  automation/<Module>/
+                  automation/<Module>[/<Sub-Module>]/
                       automation-plan.md        One plan per MODULE (not per
                                                 story): every in-scope case with
                                                 its Test Case ID, User Story, ADO
                                                 ID, spec path and Automation
                                                 Status. Rows are never removed.
                   executions/US-<id>/RUN-<nnn>/
+                      execution-results.json    Structured record of the run —
+                                                the only input of the report.
+                                                Totals derived, never stored.
+                      manual-report.html        The MANUAL HTML report (§10.4),
+                                                rendered by `execution:report`.
+                                                Never automation-report.html.
                       execution-results.md      One manual execution run:
                                                 provenance (environment label AND
                                                 target host verbatim), per-case
                                                 status, step-level Expected vs
                                                 Actual, failure classification.
-                                                Never modifies test-cases.md.
+                                                Never modifies test-cases.csv
+                                                or test-cases.md.
                       evidence/                 Screenshots. GITIGNORED — local
                                                 only, never committed. Rendered
                                                 screenshots only; never
@@ -671,6 +802,11 @@ docs/projects/<KEY>/        PROJECT KNOWLEDGE — one directory per project.
                       bug-candidates/           Local Bug Candidates, status Draft,
                                                 awaiting human review. NEVER
                                                 auto-published to Azure DevOps.
+                                                A human may resolve one as
+                                                Confirmed or Not a Bug: the
+                                                file keeps its original content
+                                                under a Resolution section
+                                                (§10.6).
 ```
 
 **`RUN-000` is reserved for non-execution artifacts.** A Bug Candidate created to

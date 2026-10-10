@@ -52,6 +52,9 @@ wrong guess files someone else's defect under the wrong story.
 
 1. **Only a human-reviewed Bug Candidate may be published**, and only one classified
    `PRODUCT_BUG` (`docs/product-decisions.md` §9). Anything else is refused.
+   **A candidate whose status is `Not a Bug`** — resolved by a human as an invalid bug report
+   (§10.6) — **is refused outright**, whatever its classification: check its Status row and the
+   run's `execution-results.json` before anything else.
 2. **Explicit human approval is required immediately before the write** (invariant 2). Approval
    recorded in the artifact, or given earlier in the session for something else, **does not**
    authorize this write.

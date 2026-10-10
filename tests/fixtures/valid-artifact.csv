@@ -1,0 +1,7 @@
+﻿Test Case ID,User Story ID,Section,Section Note,Summary,Title,Project,Module,Feature/Page,Test Type,Requirement Reference,Decisions Applied,Azure DevOps ID,Review/Lifecycle Status,Need Automation,Precondition,Test Data,Steps,Expected Results,Notes
+TC-99001-001,99001,,,Login form presents the specified fields,[DEMO][Authentication][Login - Portal] Verify the login form presents Email and Password,DEMO,Authentication,Login - Portal,Positive · UI,REQ-LOG-002 AC-1,—,55294,Published,Yes,- The portal URL is reachable and the user is **not** authenticated.,- None.,"1. Open the login URL as an unauthenticated visitor
+2. Inspect the form fields","1. The login form is displayed
+2. An **Email** field and a **Password** field are present",
+TC-99001-002,99001,,,Valid credentials authenticate successfully,[DEMO][Authentication][Login - Portal] Verify a valid user can sign in,DEMO,Authentication,Login - Portal,Positive · UI,REQ-LOG-003 AC-2,D-01,,Approved,No,- A valid account exists.,- Account handle: `PRIMARY_VALID`,"1. Enter the credentials for `PRIMARY_VALID`
+2. Click Login","1. The values are accepted
+2. The dashboard is displayed",- Settle before judging the post-submit URL.

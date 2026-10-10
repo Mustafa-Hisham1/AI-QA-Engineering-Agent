@@ -1,0 +1,2463 @@
+{
+  "executionType": "MANUAL",
+  "project": "NBO",
+  "runId": "RUN-001",
+  "userStory": {
+    "id": 52857,
+    "title": "[INT] Admin-Company-Operating Country \"Q3-API-INTE-033\""
+  },
+  "environment": {
+    "label": "STG",
+    "host": "ndc-apis-nbo-frontend-dev-epf8graxc0cudjd9.northeurope-01.azurewebsites.net"
+  },
+  "startedAt": "2026-10-10T13:13:10.000Z",
+  "finishedAt": "2026-10-10T17:29:30.000Z",
+  "executedBy": "Claude Code (AI QA agent) via Playwright MCP",
+  "testCaseSource": {
+    "path": "docs/projects/NBO/test-cases/US-52857/test-cases.csv",
+    "sha256": "4a1190e17c8f9d11a56e5351d67a796a244f875f18a965d7ddbb0477e9fdc2dd"
+  },
+  "completion": {
+    "status": "COMPLETED"
+  },
+  "results": [
+    {
+      "testCaseId": "TC-52857-001",
+      "title": "[NBO][Company][Operating Country Access] Verify a View-only user sees the Operating Country list with no Add button and no row actions",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-039 AC-1, AC-2; story Access Control AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "Operating Countries exist (22 Active on STG at 17:27Z).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_VIEW_ONLY` and open the Operating Country list page",
+          "expected": "The list loads with its filters and records",
+          "actual": "Logged in as OPERATING_COUNTRIES_VIEW_ONLY (17:27Z). List loaded with filters (Operating Country Name, Country, Active/Inactive/Both, Reset, Search) and records — \"Showing 1 to 10 of 22\".",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Look for the *Add Operating Country* button",
+          "expected": "The button is **not** shown",
+          "actual": "No \"Add Operating Country\" button is shown.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Inspect the Actions column of every row",
+          "expected": "No row offers any action — no Edit, Approve, Reject, Activate or Deactivate",
+          "actual": "Every row's Actions cell shows \"-\" — no Edit, Approve, Reject, Activate or Deactivate.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Type `Egy` in the name filter and click Search",
+          "expected": "Matching records are listed — the View-only user can search",
+          "actual": "Typed \"Egy\" and clicked Search (GET …Name=Egy&Status=1 → 200): Egypt_WT_NBO, EgyptWTNBO and Egypt listed, Actions \"-\".",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-002",
+      "title": "[NBO][Company][Operating Country Access] Verify a View-only user is kept off the Add and Edit forms when opening their URLs directly",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-038 AC-1, REQ-OPC-039 AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "Record id 20026 (AUT Opc Rokkqmxm, created in this run by ADMIN_ALL) used as the known id.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_VIEW_ONLY` and enter the Add form URL (`/admin/company/operating-country/add`) in the address bar",
+          "expected": "The user is returned to the Operating Country list; no Add form is shown",
+          "actual": "Opened /admin/company/operating-country/add as OPERATING_COUNTRIES_VIEW_ONLY: the app returned to the Operating Country list; no Add form.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Enter the Edit URL of the known record (`/admin/company/operating-country/<id>`)",
+          "expected": "No editable form with a save, Approve or Reject action is available to the user. Record what is shown (redirect, read-only view or error)",
+          "actual": "Opened /admin/company/operating-country/20026: returned to the list; the record was not even requested (no GET …/20026); no form, no save/Approve/Reject action.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-003",
+      "title": "[NBO][Company][Operating Country Access] Verify a Maker sees Add, and Edit plus Deactivate on an approved active row, with no Approve or Reject",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-039 AC-1, AC-3; story Access Control AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "Approved / Active records exist (19 Active at 13:28Z).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_MAKER` and open the Operating Country list page",
+          "expected": "The *Add Operating Country* button is shown",
+          "actual": "Logged in as OPERATING_COUNTRIES_MAKER (13:28Z); the list shows \"Add Operating Country\".",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Inspect the Actions column of an *Approved / Active* row",
+          "expected": "Exactly **Edit** and **Deactivate** are offered",
+          "actual": "Every Approved / Active row offers exactly Edit and Deactivate.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Check the same row for Approve, Reject and View All Branches",
+          "expected": "None of them is offered",
+          "actual": "No Approve, Reject or View All Branches on any row.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-004",
+      "title": "[NBO][Company][Operating Country Access] Verify an Approver sees no Add button and only Reject plus Deactivate on an approved active row",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-039 AC-1; story Access Control AC-4",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps. Approved / Active records exist.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_APPROVER` and open the Operating Country list page",
+          "expected": "The list loads; the *Add Operating Country* button is **not** shown",
+          "actual": "Logged in as OPERATING_COUNTRIES_APPROVER (17:17Z); list loaded (\"Showing 1 to 10 of 19\"); no \"Add Operating Country\" button.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Inspect the Actions column of an *Approved / Active* row",
+          "expected": "Exactly **Reject** and **Deactivate** are offered",
+          "actual": "Every Approved / Active row offers exactly Reject and Deactivate.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Check the same row for Edit and View All Branches",
+          "expected": "Neither is offered",
+          "actual": "No Edit and no View All Branches on any row.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-005",
+      "title": "[NBO][Company][Operating Country Access] Verify an Approver cannot create or amend a record when opening the Add and Edit URLs directly",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-039 AC-5",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "Record id 20026 known (created in this run).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_APPROVER` and enter the Add form URL directly",
+          "expected": "No Add form with a save action is available. Record what is shown (redirect, empty page or error)",
+          "actual": "Opened /operating-country/add as OPERATING_COUNTRIES_APPROVER: redirected to the list — no form, no message. Nothing submitted.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Enter the Edit URL of the known record directly",
+          "expected": "No form allowing the name or remarks to be saved is available. Record what is shown",
+          "actual": "Opened /operating-country/20026: redirected to the list without requesting the record; no form allowing a save.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-006",
+      "title": "[NBO][Company][Operating Country Access] Verify an all-permission user sees Add, and Edit plus Reject plus Deactivate on an approved active row",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-039 AC-1, REQ-OPC-037",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps. Approved / Active records exist (7 on STG at 13:13Z).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the Operating Country list page",
+          "expected": "The *Add Operating Country* button is shown",
+          "actual": "Logged in as ADMIN_ALL (13:13Z); \"Add Operating Country\" is shown.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Inspect the Actions column of an *Approved / Active* row",
+          "expected": "Exactly **Edit**, **Reject** and **Deactivate** are offered",
+          "actual": "Approved / Active rows offer exactly Edit, Reject and Deactivate.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Check the row for View All Branches",
+          "expected": "Not offered (D-01, analysis C-16)",
+          "actual": "View All Branches is not offered.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-007",
+      "title": "[NBO][Company][Operating Country Access] Verify a user without the Operating Country menu right cannot see the menu entry or open the list, Add or Edit URLs",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-038 AC-1, AC-3; story Access Control AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "OPC_USER_NO_MENU logged in successfully (17:28Z) → /dashboard.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPC_USER_NO_MENU` and open the navigation menu",
+          "expected": "No Operating Country entry is present under Company",
+          "actual": "Navigation menu lists only Module \"Dashboard\" → Dashboard; no Company / Operating Country entry.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Enter the list URL (`/admin/company/operating-country`) directly",
+          "expected": "The Operating Country list is not displayed",
+          "actual": "Direct /admin/company/operating-country → /access-denied: \"Access denied — You do not have access to this page. Ask your administrator if you need it.\" No Operating Country request was made.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Enter the Add URL (`/admin/company/operating-country/add`) directly",
+          "expected": "The Add form is not displayed",
+          "actual": "Direct /admin/company/operating-country/add → /access-denied (same page); no Add form.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-008",
+      "title": "[NBO][Company][Add Operating Country] Verify an all-permission user's Add form shows Name, Country, Currency and Remarks as required with only Cancel and Approve actions",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-002 AC-2, AC-4; REQ-OPC-046 AC-1, AC-7",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, open the list page and click *Add Operating Country*",
+          "expected": "The *Add Operating Country* form opens",
+          "actual": "ADMIN_ALL opened the Add form (13:16Z): heading \"Add Operating Country\", subtitle \"Fill in the details to add a new operating country. It is approved as soon as you save it.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Inspect the fields",
+          "expected": "**Operating Country Name**, **Country**, **Currency** and **Remarks** are present, each marked *(required)*",
+          "actual": "Fields Operating Country Name, Country, Currency and Remarks are all marked \"(required)\".",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Inspect the action buttons",
+          "expected": "Exactly **Cancel** and **Approve**; no *Send For Approval*",
+          "actual": "Actions are exactly Cancel and Approve; no Send For Approval.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-009",
+      "title": "[NBO][Company][Add Operating Country] Verify a Maker's Add form requires Remarks, offers only Send For Approval and blocks an empty submission",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-002 AC-1, AC-2; REQ-OPC-003 AC-7; REQ-OPC-006",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_MAKER` and click *Add Operating Country*",
+          "expected": "The Add form opens",
+          "actual": "OPERATING_COUNTRIES_MAKER clicked Add (13:28Z): form opened, subtitle \"…It goes to the approval queue when you save.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Inspect the fields",
+          "expected": "Name, Country, Currency **and Remarks** are present, each marked *(required)*",
+          "actual": "Name, Country, Currency and Remarks are present, each marked \"(required)\".",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Inspect the action buttons",
+          "expected": "Exactly **Cancel** and **Send For Approval**; no Approve",
+          "actual": "Actions are exactly Cancel and Send For Approval; no Approve.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Leave every field empty and click *Send For Approval*",
+          "expected": "Nothing is saved and the form stays open. Name shows *\"Operating Country Name is required.\"*, Country *\"Country is required.\"*, Currency *\"Currency is required.\"*, and Remarks shows validation feedback",
+          "actual": "Empty Send For Approval: no POST; form stayed open with \"4 fields need attention / Fix the highlighted fields below, then send for approval.\"; \"Operating Country Name is required.\", \"Country is required.\", \"Currency is required.\"; Remarks shows \"Remarks is required.\"",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-010",
+      "title": "[NBO][Company][Add Operating Country] Verify required-field messages appear for Name, Country, Currency and Remarks when an all-permission user clicks Approve on an empty form",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-006 AC-1…AC-3; REQ-OPC-003 AC-2, AC-6; REQ-OPC-041 AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the Add form",
+          "expected": "The form opens with every field empty",
+          "actual": "Add form opened as ADMIN_ALL with every field empty (13:16Z).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click **Approve**",
+          "expected": "Nothing is saved; the form stays open with a summary saying fields need attention",
+          "actual": "Approve on the empty form sent no request; the form stayed open with \"4 fields need attention / Fix the highlighted fields below, then approve.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Read each field's message",
+          "expected": "Name: *\"Operating Country Name is required.\"* · Country: *\"Country is required.\"* · Currency: *\"Currency is required.\"* · Remarks: *\"Remarks is required.\"*",
+          "actual": "Name: \"Operating Country Name is required.\" · Country: \"Country is required.\" · Currency: \"Currency is required.\" · Remarks: \"Remarks is required.\"",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-011",
+      "title": "[NBO][Company][Add Operating Country] Verify the Name accepts 3 and 100 characters and shows the length message for 2 and 101 characters",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-007 AC-1, AC-2, AC-5; REQ-OPC-041 AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the Add form",
+          "expected": "The form opens",
+          "actual": "Add form opened (13:17Z).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Type `Ab` in Name and press Tab",
+          "expected": "The field is flagged with *\"Operating Country Name must be between 3 and 100 characters.\"*",
+          "actual": "\"Ab\" + Tab → invalid, \"Operating Country Name must be between 3 and 100 characters.\", counter 2 / 100.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Replace with `Abc` and press Tab",
+          "expected": "The field is not flagged invalid",
+          "actual": "\"Abc\" + Tab → not invalid.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Replace with the 100-character value and press Tab",
+          "expected": "The field is not flagged invalid",
+          "actual": "100 characters + Tab → not invalid.",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Replace with the 101-character value and press Tab",
+          "expected": "The field is flagged with the same length message",
+          "actual": "101 characters + Tab → invalid, same length message, counter 101 / 100.",
+          "status": "PASS"
+        },
+        {
+          "index": 6,
+          "action": "Replace with `Ab ` (trailing space) and press Tab",
+          "expected": "The field is flagged with the length message — length is measured after trimming (REQ-OPC-007 AC-5)",
+          "actual": "\"Ab \" + Tab → invalid with the length message; counter 2 / 100 (length measured after trimming).",
+          "status": "PASS"
+        },
+        {
+          "index": 7,
+          "action": "Click Cancel",
+          "expected": "The form closes; nothing is created",
+          "actual": "Cancel → list; no POST sent.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-012",
+      "title": "[NBO][Company][Add Operating Country] Verify the Name rejects digits, symbols, a leading space and double spaces and accepts letters, accents, hyphens, apostrophes and underscores",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-008 AC-1, AC-3, AC-5; REQ-OPC-009 AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the Add form",
+          "expected": "The form opens",
+          "actual": "Add form opened (13:18Z).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Type `1abc` in Name and press Tab",
+          "expected": "Flagged with *\"Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.\"*",
+          "actual": "\"1abc\" → invalid, \"Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Replace with `Abc1`, press Tab",
+          "expected": "Flagged with the same message",
+          "actual": "\"Abc1\" → invalid, same message.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Replace with `Abc@Def`, press Tab",
+          "expected": "Flagged with the same message",
+          "actual": "\"Abc@Def\" → invalid, same message.",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Replace with ` Abcd` (leading space), press Tab",
+          "expected": "Flagged with *\"Operating Country Name may not start with a space or contain consecutive spaces.\"*",
+          "actual": "\" Abcd\" → invalid, \"Operating Country Name may not start with a space or contain consecutive spaces.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 6,
+          "action": "Replace with `Ab  Cd`, press Tab",
+          "expected": "The field is flagged invalid with a message. Record which message is shown",
+          "actual": "\"Ab  Cd\" → invalid; message shown: \"Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 7,
+          "action": "Enter each valid value in turn, pressing Tab after each",
+          "expected": "None is flagged invalid",
+          "actual": "\"Côte d'Ivoire\", \"Guinea-Bissau\", \"Trinidad and Tobago\", \"Abc_Def\" → none flagged invalid.",
+          "status": "PASS"
+        },
+        {
+          "index": 8,
+          "action": "Click Cancel",
+          "expected": "Nothing is created",
+          "actual": "Cancel → list; no POST sent.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "After a valid value replaced an invalid one, the previous message text remained in the accessibility tree (a hidden live region); a rendered screenshot showed no visible message under Name. Not a result."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-013",
+      "title": "[NBO][Company][Add Operating Country] Verify Remarks accept 250 characters and show the 250-character message for 251 characters",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-018 AC-2, AC-3, AC-4",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the Add form",
+          "expected": "The form opens",
+          "actual": "Add form opened (13:19Z).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Type 250 characters in Remarks and press Tab",
+          "expected": "Not flagged invalid; the counter reads *250 / 250*",
+          "actual": "250 characters + Tab → not invalid, counter 250 / 250.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Add one character (251) and press Tab",
+          "expected": "Flagged with *\"Remarks must not exceed 250 characters.\"*; the counter reads *251 / 250*",
+          "actual": "251 characters + Tab → invalid, \"Remarks must not exceed 250 characters.\", counter 251 / 250.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Replace with `Ok 123 #$% (test)` and press Tab",
+          "expected": "Not flagged invalid — no character rule applies to Remarks (REQ-OPC-018 AC-3)",
+          "actual": "\"Ok 123 #$% (test)\" + Tab → not invalid, counter 17 / 250.",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Click Cancel",
+          "expected": "Nothing is created",
+          "actual": "Cancel → list; no POST sent.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "Operator slip, corrected: the first paste was 255 characters (counter 255 / 250, message shown). The 250/251 boundary was then set by the app counter (Backspace from 251 to 250, one key to 251)."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-014",
+      "title": "[NBO][Company][Add Operating Country] Verify a new Operating Country is Approved and Active at the top of the list when an all-permission user approves it on creation",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-003 AC-1, AC-4, AC-6; REQ-OPC-004 AC-2; REQ-OPC-021 AC-1; REQ-OPC-023 AC-1; REQ-OPC-043 AC-3; REQ-OPC-046 AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the Add form",
+          "expected": "The form opens",
+          "actual": "Add form opened as ADMIN_ALL (13:19Z).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Enter RUN-NAME, select Egypt and Egyptian Pound, enter the remarks",
+          "expected": "No field is flagged invalid",
+          "actual": "AUT Opc Rokkqmxm / Egypt / Egyptian Pound / \"Created by QA\": no field invalid; footer \"Ready to approve\".",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Click **Approve**",
+          "expected": "A success confirmation is displayed — record its exact text — and the user is returned to the Operating Country list",
+          "actual": "Approve (+ dialog confirm) → POST 201; toast \"Success — Operating Country approved successfully\" (captured from the MCP snapshot taken immediately after the click, 13:20:14Z); returned to the list.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Look at the default list (Active filter, page 1)",
+          "expected": "RUN-NAME is the **first** row, with Country Egypt, Currency Egyptian Pound, Approval Status **Approved**, Status **Active**",
+          "actual": "Default list (Active, page 1): AUT Opc Rokkqmxm is the first row — Egypt, Egyptian Pound, Approved, Active (id 20026).",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "Approve opens a confirmation dialog \"Approve this operating country?\" / \"Your changes are saved and approved in one step.\" before saving — not part of the case."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-015",
+      "title": "[NBO][Company][Add Operating Country] Verify a Maker's new Operating Country is Pending for Approval and Inactive and appears only under the Inactive filter",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-003 AC-1, AC-7; REQ-OPC-004 AC-1, AC-3; REQ-OPC-025 AC-1, AC-2; REQ-OPC-043 AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_MAKER`, open the Add form and fill in every field",
+          "expected": "No field is flagged invalid",
+          "actual": "Maker filled AUT Opc Sapodsyv / Egypt / Egyptian Pound / \"Please approve\": no field invalid; footer \"Ready to send for approval\".",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click **Send For Approval**, then confirm **Send For Approval** in the dialog",
+          "expected": "A dialog *\"Submit this operating country for approval?\"* asks for confirmation; after confirming, a success confirmation is displayed — record its exact text — and the list is shown",
+          "actual": "Dialog \"Submit this operating country for approval?\" (\"It goes to an approver and takes effect once approved.\") → confirm → toast \"Success — Operating Country sent for approval successfully\"; list shown.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the default (Active) list by name RUN-NAME",
+          "expected": "RUN-NAME is **not** listed",
+          "actual": "Active search \"Sapodsyv\" (Status=1) → no match.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Select the **Inactive** filter and search by RUN-NAME",
+          "expected": "RUN-NAME is listed with Approval Status **Pending for Approval** (record the exact label) and Status **Inactive**",
+          "actual": "Inactive search → AUT Opc Sapodsyv, Approval Status label \"Pending\", Status \"InActive\" (id 20039).",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-016",
+      "title": "[NBO][Company][Add Operating Country] Verify the saved name has its trailing space removed when the name is entered with a trailing space",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-009 AC-1; REQ-OPC-003 AC-5; story Creation AC-6",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, open the Add form, enter RUN-NAME with a trailing space and the other fields",
+          "expected": "The name is not flagged invalid",
+          "actual": "\"AUT Opc Isyklodt \" (trailing space) with Egypt / Egyptian Pound / \"Trim check\": not invalid; counter 16 / 100.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click Approve",
+          "expected": "The record is created and the list is shown",
+          "actual": "Approve (+ confirm) → POST 201, toast \"Operating Country approved successfully\", list shown (id 20027).",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Open the new record's Edit form and read the Name value and its character counter",
+          "expected": "The name equals RUN-NAME with no trailing space; the counter equals the length of RUN-NAME",
+          "actual": "Edit form Name \"AUT Opc Isyklodt\", counter 16 / 100; GET …/20027 returns name \"AUT Opc Isyklodt\" with no trailing space.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Click Cancel",
+          "expected": "Nothing changes",
+          "actual": "Cancel → list; no write sent.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-017",
+      "title": "[NBO][Company][Add Operating Country] Verify creation is refused when the name matches an existing Operating Country exactly or in different letter case",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-010 AC-1, AC-2, AC-5; REQ-OPC-041 AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - A record named RUN-NAME exists. Create it in step 1.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and create RUN-NAME (Egypt, Egyptian Pound, remarks) with Approve",
+          "expected": "RUN-NAME is created",
+          "actual": "Created AUT Opc Huuxhlei with Approve → POST 201, toast \"Operating Country approved successfully\" (id 20028).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Open the Add form, type RUN-NAME exactly, and press Tab",
+          "expected": "No duplicate message is shown on leaving the field (D-01)",
+          "actual": "New Add form, typed AUT Opc Huuxhlei + Tab (2 s wait) → no duplicate message.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Complete Country, Currency and Remarks and click Approve",
+          "expected": "The save is refused; the form stays open and the message *\"Operating Country Already Exists.\"* is shown (D-12)",
+          "actual": "Completed fields, Approve (+ confirm) → POST 409; form stayed open; toast \"Error — Operating Country Already Exists.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Change the name to RUN-NAME in lower case and click Approve",
+          "expected": "The save is refused and the message *\"Operating Country Already Exists.\"* is shown (D-12)",
+          "actual": "\"aut opc huuxhlei\", Approve (+ confirm) → POST 409; \"Operating Country Already Exists.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Click Cancel and search the list for RUN-NAME (Both filter)",
+          "expected": "Exactly **one** record named RUN-NAME exists",
+          "actual": "Cancel; Both + \"Huuxhlei\" → \"1 operating country\" (id 20028).",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-018",
+      "title": "[NBO][Company][Add Operating Country] Verify a name already held by a Pending for Approval record is refused when another record is created with it",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-010 AC-6",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - A *Pending* record named RUN-NAME exists. Create it in step 1.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME (Egypt, Egyptian Pound, remarks) with Send For Approval",
+          "expected": "RUN-NAME exists as *Pending / Inactive*",
+          "actual": "Maker created AUT Opc Dmnelxxy with Send For Approval (13:34Z) → toast \"Operating Country sent for approval successfully\"; Pending / Inactive (id 20042).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Log in as `ADMIN_ALL`, open the Add form, enter RUN-NAME with the other fields, and click Approve",
+          "expected": "The save is refused and the message *\"Operating Country Already Exists.\"* is shown (D-12)",
+          "actual": "ADMIN_ALL Add form with AUT Opc Dmnelxxy, Egypt, Egyptian Pound, remarks, Approve (+ confirm) → POST 409; toast \"Error — Operating Country Already Exists.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the list (Both filter) by RUN-NAME",
+          "expected": "Exactly one record, still *Pending / Inactive*",
+          "actual": "Both + \"Dmnelxxy\" → \"Showing 1 to 1 of 1\": AUT Opc Dmnelxxy, Pending / InActive.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "First Approve attempt (17:24Z) was refused client-side (\"Could not save — 1 field needs attention.\") because the name was filled before the freshly loaded form initialised — an execution slip; nothing was sent. The name was re-entered."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-019",
+      "title": "[NBO][Company][Add Operating Country] Verify an inactive Country or Currency is listed on the Add form and creation with it is refused, recording the message",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-002 AC-3, AC-6",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "OPC_COUNTRY_INACTIVE and OPC_CURRENCY_INACTIVE verified read-only at 13:14–13:15Z in the Country and Currency masters: both Rejected / InActive (statuses never changed). The Currency list API also returned the currency with status 0.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, open the Add form and open the Country list",
+          "expected": "The inactive Country is listed (the Add-form lists are unfiltered — D-01)",
+          "actual": "The inactive Country (OPC_COUNTRY_INACTIVE) is listed in the Add form's Country list.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Enter RUN-NAME, select the inactive Country, Egyptian Pound and remarks, then click Approve",
+          "expected": "The record is **not** created and the message *\"The selected country is not active.\"* is shown (D-11)",
+          "actual": "AUT Opc Qazgtuxr + inactive Country + Egyptian Pound + remarks, Approve (+ confirm) → POST 409; not created; toast \"Error — The selected country is not active.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Enter RUN-NAME-2, select Egypt, the inactive Currency and remarks, then click Approve",
+          "expected": "The record is **not** created and an error is shown — record its exact text",
+          "actual": "AUT Opc Nsuutima + Egypt + inactive Currency (OPC_CURRENCY_INACTIVE) + remarks, Approve (+ confirm) → POST 409; not created; toast \"Error — The selected currency is not active.\"",
+          "status": "OBSERVED"
+        },
+        {
+          "index": 4,
+          "action": "Search the list (Both filter) for RUN-NAME and RUN-NAME-2",
+          "expected": "Neither exists",
+          "actual": "Both filter: \"Qazgtuxr\" and \"Nsuutima\" → \"No operating countries match these filters\" for each.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "The Currency dropdown renders only the first 16 of 211 options; the inactive currency was reached through the dropdown's type-ahead filter."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-020",
+      "title": "[NBO][Company][Add Operating Country] Observe the result when a Currency not belonging to the chosen Country is selected and Approve is clicked",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-001 AC-4",
+      "status": "PASS",
+      "observationOnly": true,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, open the Add form, select Country **Egypt** and open the Currency list",
+          "expected": "The list is **not** narrowed to Egypt — currencies such as Kuwaiti Dinar are offered (D-06, observed behaviour)",
+          "actual": "Country Egypt selected; the Currency list is not narrowed — Kuwaiti Dinar, Euro, Saudi Riyal and others offered.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Enter RUN-NAME, select Kuwaiti Dinar and the remarks, then click Approve",
+          "expected": "**Observation only:** record whether the record is created or refused, and the exact message shown",
+          "actual": "AUT Opc Nyzsjzmv + Egypt + Kuwaiti Dinar + \"Mapping check\", Approve (+ confirm) → CREATED: toast \"Success — Operating Country approved successfully\"; no refusal or message.",
+          "status": "OBSERVED"
+        },
+        {
+          "index": 3,
+          "action": "If it was created, search the list for RUN-NAME and record its Country and Currency",
+          "expected": "Recorded",
+          "actual": "List: AUT Opc Nyzsjzmv — Country Egypt, Currency Kuwaiti Dinar, Approved / Active (id 20029).",
+          "status": "OBSERVED"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-021",
+      "title": "[NBO][Company][Add Operating Country] Verify no Operating Country is created when a filled Add form is cancelled",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-046 AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, open the Add form and fill in every field",
+          "expected": "No field is flagged invalid",
+          "actual": "AUT Opc Qtzckbky / Egypt / Egyptian Pound / \"Cancel check\": no field invalid, \"Ready to approve\".",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click **Cancel** (confirm leaving if asked)",
+          "expected": "The Operating Country list is shown",
+          "actual": "Cancel → list shown directly (no leave confirmation asked).",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the list (Both filter) by RUN-NAME",
+          "expected": "No record named RUN-NAME exists",
+          "actual": "Both + \"Qtzckbky\" → \"No operating countries match these filters\"; no POST was sent.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-022",
+      "title": "[NBO][Company][Edit Operating Country] Verify the Edit form pre-fills name and remarks, locks Country and Currency, and offers Cancel, Approve and Reject to an all-permission user",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-014 AC-1, AC-4; REQ-OPC-015 AC-1; REQ-OPC-046 AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "Approved / Active record AUT Opc Rokkqmxm (20026, created in TC-52857-014). Nothing saved.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and click **Edit** on an *Approved / Active* row",
+          "expected": "The *Edit Operating Country* form opens",
+          "actual": "Edit on the row → \"Edit Operating Country\" (\"You decide on this operating country when you save.\").",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Compare Name, Country and Currency with the row",
+          "expected": "All three match the row",
+          "actual": "Name AUT Opc Rokkqmxm, Country Egypt, Currency Egyptian Pound — all match the row.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Try to open the Country and Currency dropdowns",
+          "expected": "Both are disabled and cannot be changed",
+          "actual": "Country and Currency comboboxes are aria-disabled; clicking was refused (\"element is not enabled\"); no option list opened.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Inspect Remarks",
+          "expected": "Pre-filled with the stored remarks and editable",
+          "actual": "Remarks pre-filled \"Created by QA\" in an editable textbox.",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Inspect the actions",
+          "expected": "Exactly **Cancel**, **Approve** and **Reject** — no plain Update",
+          "actual": "Actions exactly Cancel, Approve and Reject; no plain Update.",
+          "status": "PASS"
+        },
+        {
+          "index": 6,
+          "action": "Click Cancel",
+          "expected": "The list is shown; nothing changed",
+          "actual": "Cancel → list; only GET …/20026 sent; row unchanged.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-023",
+      "title": "[NBO][Company][Edit Operating Country] Verify an Approved Operating Country stays Approved and Active when a Maker renames it and clicks Update",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-016 AC-1, AC-4, AC-5; REQ-OPC-017 AC-1, AC-4; REQ-OPC-039 AC-4",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - An *Approved / Active* record created by this case (step 1).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME (Egypt, Egyptian Pound, remarks) with Approve",
+          "expected": "RUN-NAME is *Approved / Active*",
+          "actual": "ADMIN_ALL created AUT Opc Jlzuzhen with Approve (13:25Z) → Approved / Active (id 20031).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Log in as `OPERATING_COUNTRIES_MAKER` and open RUN-NAME's Edit form",
+          "expected": "The actions are exactly **Cancel** and **Update**",
+          "actual": "Maker opened its Edit form: actions exactly Cancel and Update.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Change the name to RUN-NAME-2, keep the remarks, and click Update",
+          "expected": "A success confirmation is displayed — record its exact text — and the list is shown",
+          "actual": "Renamed to AUT Opc Auzfaiut, Update → dialog \"Save changes to this operating country?\" → Update → PUT 200; toast \"Success — Operating Country updated successfully\"; list shown.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Find RUN-NAME-2 in the default (Active) list",
+          "expected": "Approval Status **Approved**, Status **Active**; it is the first row",
+          "actual": "Default list: AUT Opc Auzfaiut first row, Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-024",
+      "title": "[NBO][Company][Edit Operating Country] Verify no duplicate error appears when a Maker updates only the Remarks and keeps the existing name",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-011 AC-1, AC-3; REQ-OPC-018 AC-6",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME with Approve",
+          "expected": "Created, *Approved / Active*",
+          "actual": "ADMIN_ALL created AUT Opc Rqiuybio with Approve (13:25Z) → Approved / Active (id 20032).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, open its Edit form, replace the remarks, leave the name unchanged, and click Update",
+          "expected": "The update is saved with no duplicate-name error; the list is shown",
+          "actual": "Maker replaced remarks with \"Remarks updated by QA\", name unchanged, Update (+ confirm) → PUT 200 (request body remarks \"Remarks updated by QA\"); no duplicate-name error; list shown. (Passed on retry — see observation.)",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Reopen the Edit form",
+          "expected": "Name is unchanged; Remarks show `Remarks updated by QA` in full",
+          "actual": "Reopened Edit: Name AUT Opc Rqiuybio unchanged; Remarks \"Remarks updated by QA\" (21 / 250).",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "UNVERIFIED, cause UNKNOWN: on the first attempt (13:29:33Z, remarks set with a programmatic fill and no blur) Update returned PUT 200 and \"Operating Country updated successfully\", yet the record kept remarks \"Created by QA\" (Edit form and GET …/20032). That PUT body was not captured. The retry (typed + Tab) sent remarks \"Remarks updated by QA\" and persisted. Not reproduced; recorded for a human to judge."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-025",
+      "title": "[NBO][Company][Edit Operating Country] Verify an update is refused when a Maker renames a record to another Operating Country's name in different letter case",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-010 AC-2; REQ-OPC-011 AC-2, AC-7; story Validation AC-4",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME and RUN-NAME-2, both with Approve",
+          "expected": "Both exist",
+          "actual": "ADMIN_ALL created AUT Opc Ustqndtg and AUT Opc Ussruvab with Approve (13:26Z); both Approved / Active (ids 20033, 20034).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, open RUN-NAME-2's Edit form, change the name to RUN-NAME in upper case, and click Update",
+          "expected": "The update is refused; the form stays open and the message *\"Operating Country Already Exists.\"* is shown (D-12)",
+          "actual": "Maker renamed AUT Opc Ussruvab to \"AUT OPC USTQNDTG\", Update (+ confirm) → PUT 409; form stayed open; toast \"Error — Operating Country Already Exists.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Click Cancel and search for RUN-NAME-2",
+          "expected": "It still exists under its original name",
+          "actual": "Cancel; search \"Ussruvab\" → AUT Opc Ussruvab still listed, Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-026",
+      "title": "[NBO][Company][Edit Operating Country] Verify the Edit form flags an empty, too-short or invalid-character name with the same messages as the Add form",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-016 AC-3; story Editing AC-6",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "Approved / Active record AUT Opc Huuxhlei (20028). Nothing saved.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `OPERATING_COUNTRIES_MAKER` and open the Edit form of an *Approved / Active* record",
+          "expected": "The form opens",
+          "actual": "Maker opened the Edit form (actions Cancel, Update).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Clear the name and press Tab",
+          "expected": "Flagged with *\"Operating Country Name is required.\"*",
+          "actual": "Cleared name + Tab → \"Operating Country Name is required.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Enter `Ab`, press Tab",
+          "expected": "Flagged with *\"Operating Country Name must be between 3 and 100 characters.\"*",
+          "actual": "\"Ab\" + Tab → \"Operating Country Name must be between 3 and 100 characters.\" (2 / 100).",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Enter `Abc1`, press Tab",
+          "expected": "Flagged with *\"Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.\"*",
+          "actual": "\"Abc1\" + Tab → \"Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.\"",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Click Cancel",
+          "expected": "Nothing is saved; the record is unchanged",
+          "actual": "Cancel → list; only GET …/20028; record unchanged.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-027",
+      "title": "[NBO][Company][Edit Operating Country] Verify a Pending for Approval record stays Pending and Inactive when a Maker updates it",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-016 AC-7; REQ-OPC-017 AC-1, AC-4; REQ-OPC-039 AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Anlodsmq with Send For Approval → Pending / InActive (id 20041).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Open RUN-NAME's Edit form (Inactive filter)",
+          "expected": "The form offers an update action and **no** Approve or Reject. Record the action names shown",
+          "actual": "Edit form (from the Inactive filter): actions Cancel and \"Send For Approval\"; no Approve or Reject.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Rename to RUN-NAME-2 and save with the update action",
+          "expected": "A success confirmation is displayed; the list is shown",
+          "actual": "Renamed to AUT Opc Aqsubnkt, Send For Approval (+ confirm) → PUT 200; toast \"Success — Operating Country sent for approval successfully\" (MCP snapshot 13:34:04Z); list shown.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Search the Inactive list for RUN-NAME-2",
+          "expected": "Approval Status still *Pending for Approval*; Status **Inactive**",
+          "actual": "Inactive search \"Aqsubnkt\" → Pending / InActive.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-028",
+      "title": "[NBO][Company][Edit Operating Country] Verify a Rejected record returns to Pending for Approval and stays Inactive when a Maker amends it and sends it for approval",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-016 AC-6; REQ-OPC-017 AC-4; REQ-OPC-025 AC-4; REQ-OPC-039 AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Gcdpihkx with Send For Approval (13:34Z) → Pending / Inactive (id 20043).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, reject RUN-NAME from the list, giving the reject remarks",
+          "expected": "*Rejected / Inactive*",
+          "actual": "Approver rejected it from the list with \"Rejected by QA\" (17:20Z) → toast \"Operating country rejected successfully\"; Rejected / InActive.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, open RUN-NAME's Edit form",
+          "expected": "The only save action is **Send For Approval** (REQ-OPC-039 AC-1); no Approve or Reject",
+          "actual": "Maker Edit form (17:23Z): only save action \"Send For Approval\" (+ Cancel); no Approve or Reject; Remarks pre-filled \"Rejected by QA\".",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Rename to RUN-NAME-2 and click Send For Approval",
+          "expected": "A success confirmation is displayed",
+          "actual": "Renamed to AUT Opc Dkiiyhmi, Send For Approval (+ confirm) → PUT 200; toast \"Success — Operating Country sent for approval successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Search the Inactive list for RUN-NAME-2",
+          "expected": "Approval Status *Pending for Approval*; Status **Inactive**",
+          "actual": "Inactive search → AUT Opc Dkiiyhmi, Pending / InActive.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-029",
+      "title": "[NBO][Company][Edit Operating Country] Verify name and remarks stay unchanged when a Maker edits them and clicks Cancel",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-016 AC-5; REQ-OPC-017 AC-1 (Cancel)",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME with Approve and remarks `Original`",
+          "expected": "Created",
+          "actual": "ADMIN_ALL created AUT Opc Hbvdwbny with remarks \"Original\" (13:26Z) → Approved / Active (id 20035).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, open its Edit form, change the name to RUN-NAME-2 and the remarks to `Changed`",
+          "expected": "Fields show the new values",
+          "actual": "Maker Edit: name AUT Opc Tgfwtles and remarks \"Changed\" shown; footer \"Ready to update\".",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Click **Cancel** (confirm leaving if asked)",
+          "expected": "The list is shown",
+          "actual": "Cancel → list shown directly (no confirmation); no PUT sent.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Reopen RUN-NAME's Edit form",
+          "expected": "Name RUN-NAME, remarks `Original`, still *Approved / Active*",
+          "actual": "Reopened Edit: Name AUT Opc Hbvdwbny, remarks \"Original\"; list row Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-030",
+      "title": "[NBO][Company][Operating Country Approval] Verify a Pending record becomes Approved and Active when an Approver approves it from the list with remarks",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-025 AC-1; REQ-OPC-026 AC-1; REQ-OPC-027 AC-1; REQ-OPC-030 AC-1",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Owkqucho with Send For Approval (17:14Z, after re-login) → Pending / Inactive (id 20044).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, find RUN-NAME (Inactive filter) and inspect its actions",
+          "expected": "**Approve** and **Reject** are offered; no Edit",
+          "actual": "Approver, Inactive filter: row offers Approve and Reject; no Edit.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Click **Approve**",
+          "expected": "A dialog asking for remarks is shown — record its title, fields and buttons",
+          "actual": "Approve → dialog title \"Approve AUT Opc Owkqucho?\", text \"The record is marked approved. Add a short reason — it is kept with the decision.\", field \"Reason (required)\", buttons Cancel and \"Approve Operating country\" (disabled until a reason is entered).",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Enter the remarks and confirm",
+          "expected": "A success confirmation is displayed — record its exact text",
+          "actual": "Reason \"Approved by QA\" → PUT 200; toast \"Success — Operating country approved successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Search the default (Active) list for RUN-NAME",
+          "expected": "Approval Status **Approved**, Status **Active**",
+          "actual": "Active search → AUT Opc Owkqucho, Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-031",
+      "title": "[NBO][Company][Operating Country Approval] Verify a Pending record becomes Rejected and Inactive when an Approver rejects it from the list with remarks",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-026 AC-2; REQ-OPC-030 AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Qfkdpedm with Send For Approval → Pending / Inactive (id 20045).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, click **Reject** on RUN-NAME",
+          "expected": "A reject dialog is shown — record its title, fields and buttons, and whether Remarks is marked required",
+          "actual": "Approver Reject → dialog title \"Reject AUT Opc Qfkdpedm?\", text \"The record is marked rejected. Add a short reason — it is kept with the decision.\", field \"Reason (required)\" (marked required), buttons Cancel and \"Reject Operating country\" (disabled until a reason is entered).",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Enter the remarks and confirm",
+          "expected": "A success confirmation is displayed — record its exact text",
+          "actual": "Reason \"Rejected by QA\" → PUT 200; toast \"Success — Operating country rejected successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Search the Inactive list for RUN-NAME",
+          "expected": "Approval Status **Rejected**, Status **Inactive**",
+          "actual": "Inactive search → Rejected / InActive.",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Search the default (Active) list for RUN-NAME",
+          "expected": "Not listed",
+          "actual": "Active search → \"No operating countries match these filters\".",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-032",
+      "title": "[NBO][Company][Operating Country Approval] Observe whether a Pending record can be rejected from the list when the Remarks field is left empty",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-027 AC-2",
+      "status": "PASS",
+      "observationOnly": true,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Fxbugniz with Send For Approval → Pending / Inactive (id 20046).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, click **Reject** on RUN-NAME, leave Remarks empty, and confirm",
+          "expected": "**Observation only:** record whether the rejection is blocked (and the exact message) or recorded",
+          "actual": "Approver Reject with Reason empty: the confirm button \"Reject Operating country\" stays disabled; leaving the field shows \"Reason is required.\" The rejection is blocked in the UI — no request sent. Dialog cancelled.",
+          "status": "OBSERVED"
+        },
+        {
+          "index": 3,
+          "action": "Search the list (Both filter) for RUN-NAME",
+          "expected": "Record its Approval Status and Status",
+          "actual": "Both search → AUT Opc Fxbugniz: Approval Status Pending, Status InActive.",
+          "status": "OBSERVED"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-033",
+      "title": "[NBO][Company][Operating Country Approval] Verify an Approver cannot approve a Pending record when Remarks are empty or longer than 250 characters",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-027 AC-2, AC-5; REQ-OPC-018 AC-1, AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Wrtfoypv with Send For Approval → Pending / Inactive (id 20047).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, click **Approve** on RUN-NAME, leave Remarks empty, and confirm",
+          "expected": "The approval is not recorded; validation feedback is shown for Remarks — record its exact text",
+          "actual": "Approver Approve with Reason empty: confirm \"Approve Operating country\" disabled; field invalid with \"Reason is required.\" — approval not recorded.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Enter 251 characters in Remarks and confirm",
+          "expected": "The approval is not recorded; validation feedback is shown — record its exact text",
+          "actual": "Reason of 251 characters (counter 251 / 250): field invalid with \"Reason must not exceed 250 characters.\"; confirm stays disabled — approval not recorded.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Cancel the dialog and search the Inactive list for RUN-NAME",
+          "expected": "Still *Pending for Approval / Inactive*",
+          "actual": "Dialog cancelled; Inactive search → Pending / InActive; no PUT sent.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "Operator slip, corrected: the first 251-character entry reached 252 (counter 252 / 250); one Backspace set it to 251 / 250."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-034",
+      "title": "[NBO][Company][Operating Country Approval] Verify a Pending record stays Pending when an Approver opens the Approve dialog, enters remarks and cancels",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-026 AC-5; REQ-OPC-027 AC-4; REQ-OPC-046 AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Uediodof with Send For Approval → Pending / Inactive (id 20048).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, click **Approve** on RUN-NAME, enter the remarks, then cancel the dialog",
+          "expected": "The dialog closes; no confirmation is shown",
+          "actual": "Approver Approve, Reason \"Will be cancelled\", Cancel → dialog closed; no confirmation toast; no PUT/PATCH sent.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the Inactive list for RUN-NAME",
+          "expected": "Still *Pending for Approval / Inactive*",
+          "actual": "Inactive search → Pending / InActive.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-035",
+      "title": "[NBO][Company][Operating Country Approval] Verify a Maker sees no Approve or Reject on a Pending record in the list or on its Edit form",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-039 AC-3; REQ-OPC-046 AC-8; story Access Control AC-7",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Cdnohiej with Send For Approval → Pending / Inactive (id 20040).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Find RUN-NAME in the Inactive list and inspect its row actions",
+          "expected": "No Approve and no Reject. Record the actions that are offered",
+          "actual": "Inactive list row actions for the Maker: Edit only — no Approve, no Reject.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Open RUN-NAME's Edit form and inspect its actions",
+          "expected": "No Approve and no Reject",
+          "actual": "Edit form (\"Goes to the approval queue when you save.\"): actions Cancel and Send For Approval — no Approve, no Reject.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-036",
+      "title": "[NBO][Company][Operating Country Approval] Verify a Pending record becomes Approved and Active when an all-permission user approves it from the Edit form",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-046 AC-2 (Pending), AC-5; REQ-OPC-016 AC-8",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Frpwmqqc with Send For Approval → Pending / Inactive (id 20049).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `ADMIN_ALL`, open RUN-NAME's Edit form",
+          "expected": "The actions are **Approve** and **Reject** (and Cancel); no Send For Approval",
+          "actual": "ADMIN_ALL Edit form: actions Cancel, Approve and Reject; no Send For Approval.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Replace the remarks and click **Approve**",
+          "expected": "A success confirmation is displayed — record its exact text",
+          "actual": "Remarks \"Approved in edit\", Approve → dialog \"Approve this operating country?\" → confirm → PUT 200; toast \"Success — Operating Country approved successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Search the default (Active) list for RUN-NAME",
+          "expected": "**Approved / Active**",
+          "actual": "Active search → AUT Opc Frpwmqqc, Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-037",
+      "title": "[NBO][Company][Operating Country Approval] Verify a Rejected record's Edit form offers only Approve and Cancel and approving it makes it Approved and Active",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-046 AC-2 (Rejected); REQ-OPC-026 AC-4; REQ-OPC-039 AC-1",
+      "status": "FAIL",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": "PRODUCT_BUG",
+      "reason": "Step 3: the Edit form of a Rejected record offers Cancel, Approve AND Reject to ADMIN_ALL; the case expects exactly Approve and Cancel, with no Reject. The list row of the same record offers only Approve.",
+      "suspectedCause": "The Edit form appears to choose its actions from the user's permissions only, not from the record's approval status (unconfirmed).",
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "*Pending / Inactive*",
+          "actual": "Maker created AUT Opc Syhidmpu with Send For Approval → Pending / Inactive (id 20050).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, reject RUN-NAME with the reject remarks",
+          "expected": "*Rejected / Inactive*",
+          "actual": "Approver rejected it with \"Rejected by QA\" → Rejected / InActive.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "As `ADMIN_ALL`, open RUN-NAME's Edit form",
+          "expected": "The actions are exactly **Approve** and **Cancel** — **no Reject**",
+          "actual": "ADMIN_ALL Edit form: actions are Cancel, Approve AND Reject (subtitle \"You decide on this operating country when you save.\"). Reject should not be offered.",
+          "status": "FAIL"
+        },
+        {
+          "index": 4,
+          "action": "Check the Remarks field",
+          "expected": "Pre-filled with `Rejected by QA` (REQ-OPC-018 AC-5)",
+          "actual": "Remarks pre-filled with \"Rejected by QA\".",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Replace the remarks and click Approve",
+          "expected": "A success confirmation is displayed",
+          "actual": "Remarks \"Re-approved by QA\", Approve (+ confirm) → toast \"Success — Operating Country approved successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 6,
+          "action": "Search the default list for RUN-NAME",
+          "expected": "**Approved / Active**",
+          "actual": "Default list → AUT Opc Syhidmpu, Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "evidence/TC-52857-037-step3-rejected-edit-offers-reject.png",
+          "label": "Step 3 — Edit form of the Rejected record showing Cancel / Approve / Reject"
+        }
+      ],
+      "observations": [],
+      "bugCandidateId": "BUG-002"
+    },
+    {
+      "testCaseId": "TC-52857-038",
+      "title": "[NBO][Company][Operating Country Approval] Verify an Approved record becomes Rejected and Inactive and leaves the default list when an all-permission user rejects it",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-026 AC-2, AC-4; REQ-OPC-046 AC-2 (Approved)",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME with Approve",
+          "expected": "*Approved / Active*",
+          "actual": "ADMIN_ALL created AUT Opc Okifhaxt with Approve → Approved / Active (id 20030).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click **Reject** on RUN-NAME's row, enter the remarks, and confirm",
+          "expected": "A success confirmation is displayed — record its exact text",
+          "actual": "Row Reject → dialog \"Reject AUT Opc Okifhaxt?\" with \"Reason (required)\"; reason \"Withdrawn by QA\", confirm → PUT 200; toast \"Success — Operating country rejected successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the default (Active) list for RUN-NAME",
+          "expected": "Not listed",
+          "actual": "Active search \"Okifhaxt\" → not listed.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Search the Inactive list for RUN-NAME",
+          "expected": "**Rejected / Inactive**",
+          "actual": "Inactive search → Rejected / InActive.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-039",
+      "title": "[NBO][Company][Operating Country Status] Verify an Approver's confirmed deactivation makes the record Inactive and Activate restores it to Active without a confirmation",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-030 AC-4, AC-5, AC-7, AC-8, AC-9, AC-10; story Lifecycle AC-3…AC-5",
+      "status": "FAIL",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": "PRODUCT_BUG",
+      "reason": "Step 6: clicking Activate opens a confirmation dialog \"Activate AUT Opc Mnyftfxg?\" (\"The record becomes active immediately. You can deactivate it again later.\") with Cancel / \"Activate Operating country\"; the record becomes Active only after confirming. The case expects activation without a confirmation step (REQ-OPC-030 AC-10).",
+      "suspectedCause": "The Activate action appears to reuse the Deactivate confirmation pattern; whether it is a deliberate UI decision is undecided (unconfirmed).",
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME with Approve",
+          "expected": "*Approved / Active*",
+          "actual": "ADMIN_ALL created AUT Opc Mnyftfxg with Approve (13:26Z) → Approved / Active (id 20036).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, click **Deactivate** on RUN-NAME",
+          "expected": "A confirmation is requested before anything changes — record the full warning text",
+          "actual": "Approver Deactivate → confirmation requested before any change: \"Deactivate AUT Opc Mnyftfxg?\" — \"The operating country stops appearing for selection. You can reactivate it later.\" (Cancel / \"Deactivate Operating country\").",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Confirm",
+          "expected": "A result message is shown — record its text",
+          "actual": "Confirmed → PATCH …/status 200; toast \"Success — Operating country deactivated successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Search the default (Active) list for RUN-NAME",
+          "expected": "Not listed",
+          "actual": "Active search → not listed.",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Search the Inactive list for RUN-NAME",
+          "expected": "Approval Status **Approved**, Status **Inactive**; an **Activate** action is offered",
+          "actual": "Inactive search → Approved / InActive; actions Reject and Activate.",
+          "status": "PASS"
+        },
+        {
+          "index": 6,
+          "action": "Click **Activate**",
+          "expected": "The record becomes Active **without** a confirmation step (REQ-OPC-030 AC-10)",
+          "actual": "Activate → a confirmation dialog \"Activate AUT Opc Mnyftfxg?\" appeared (Cancel / \"Activate Operating country\"); nothing changed until it was confirmed.",
+          "status": "FAIL"
+        },
+        {
+          "index": 7,
+          "action": "Search the default list for RUN-NAME",
+          "expected": "**Approved / Active**",
+          "actual": "After confirming: toast \"Success — Operating country activated successfully\"; default list → Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [
+        {
+          "path": "evidence/TC-52857-039-step6-activate-confirmation.png",
+          "label": "Step 6 — confirmation dialog shown on Activate"
+        }
+      ],
+      "observations": [],
+      "bugCandidateId": "BUG-001"
+    },
+    {
+      "testCaseId": "TC-52857-040",
+      "title": "[NBO][Company][Operating Country Status] Verify a Maker can deactivate an Approved record to Inactive and activate it back to Active",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-030 AC-4",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME with Approve",
+          "expected": "*Approved / Active*",
+          "actual": "ADMIN_ALL created AUT Opc Fybfrrhp with Approve (13:26Z) → Approved / Active (id 20037).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, click **Deactivate** on RUN-NAME and confirm",
+          "expected": "The deactivation succeeds — no permission error",
+          "actual": "Maker Deactivate + confirm → PATCH …/status 200; toast \"Success — Operating country deactivated successfully\"; no permission error.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the Inactive list for RUN-NAME",
+          "expected": "**Approved / Inactive**; **Activate** is offered to the Maker",
+          "actual": "Inactive search → Approved / InActive; Activate offered to the Maker.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Click **Activate**",
+          "expected": "The activation succeeds",
+          "actual": "Activate (+ confirm) → PATCH 200; toast \"Success — Operating country activated successfully\".",
+          "status": "PASS"
+        },
+        {
+          "index": 5,
+          "action": "Search the default list for RUN-NAME",
+          "expected": "**Approved / Active**",
+          "actual": "Default list → Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [
+        "Activate asked for confirmation (\"Activate AUT Opc Fybfrrhp?\") — this case does not assert it; the same behaviour fails TC-52857-039 (BUG-001)."
+      ],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-041",
+      "title": "[NBO][Company][Operating Country Status] Verify an Approved record stays Active when Deactivate is clicked and the confirmation is cancelled",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-030 AC-9; story Lifecycle AC-5",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `ADMIN_ALL`, create RUN-NAME with Approve",
+          "expected": "*Approved / Active*",
+          "actual": "ADMIN_ALL created AUT Opc Owpbmnnx with Approve (13:26Z) → Approved / Active (id 20038).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, click **Deactivate** on RUN-NAME, then cancel the confirmation",
+          "expected": "The confirmation closes",
+          "actual": "Approver Deactivate → dialog \"Deactivate AUT Opc Owpbmnnx?\" → Cancel → dialog closed; no PATCH sent.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Search the default list for RUN-NAME",
+          "expected": "Still **Approved / Active**",
+          "actual": "Default list → still Approved / Active.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-042",
+      "title": "[NBO][Company][Operating Country Status] Verify no Activate action is offered on a Pending or a Rejected record to any role",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-030 AC-5, AC-6; story Lifecycle AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME and RUN-NAME-2 with Send For Approval",
+          "expected": "Both *Pending / Inactive*",
+          "actual": "Maker created AUT Opc Pbeutfmx and AUT Opc Hpkbyyez with Send For Approval → both Pending / Inactive (ids 20051, 20052).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `OPERATING_COUNTRIES_APPROVER`, reject RUN-NAME-2 with remarks",
+          "expected": "RUN-NAME-2 *Rejected / Inactive*",
+          "actual": "Approver rejected AUT Opc Hpkbyyez with \"Rejected by QA\" → Rejected / InActive.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "In the Inactive list, inspect both rows as `OPERATING_COUNTRIES_APPROVER`",
+          "expected": "Neither row offers **Activate**",
+          "actual": "Approver, Inactive list: Pbeutfmx (Pending) offers Approve, Reject; Hpkbyyez (Rejected) offers Approve; neither offers Activate.",
+          "status": "PASS"
+        },
+        {
+          "index": 4,
+          "action": "Repeat as `OPERATING_COUNTRIES_MAKER` and as `ADMIN_ALL`",
+          "expected": "Neither row offers **Activate** to either role",
+          "actual": "Maker: both rows offer only Edit. ADMIN_ALL: Pbeutfmx offers Edit, Approve, Reject; Hpkbyyez offers Edit, Approve. No Activate for either role.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-043",
+      "title": "[NBO][Company][Operating Country List] Verify the list page shows the Operating Country heading and the Name, Country, Currency, Approval Status, Status and Actions columns",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-019 AC-1, AC-4; REQ-OPC-045",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "The CSV Precondition cell reads \"#NAME?\" (spreadsheet formula corruption) — no precondition could be read; the case was run on its Test Data and steps.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the list page",
+          "expected": "The page heading reads **Operating Country**",
+          "actual": "ADMIN_ALL list page heading reads \"Operating Country\".",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Read the column headings",
+          "expected": "**Name**, **Country**, **Currency**, **Approval Status**, **Status**, **Actions**",
+          "actual": "Columns: Name, Country, Currency, Approval Status, Status, Actions.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Read the filter labels",
+          "expected": "**Operating Country Name**, **Country**, and the Active / Inactive / Both toggle",
+          "actual": "Filters: \"Operating Country Name\", \"Country\", and the Active / Inactive / Both toggle.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-044",
+      "title": "[NBO][Company][Operating Country List] Verify the list opens on Active records, 10 rows per page, page 1, ordered by last change, with the record count shown",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-021 AC-1; REQ-OPC-022 AC-1, AC-4; REQ-OPC-023 AC-1; REQ-OPC-019 AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - None (read-only).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL` and open the list page",
+          "expected": "The **Active** toggle is selected; every row's Status is **Active**",
+          "actual": "Active toggle selected; all 7 rows Active (13:13Z).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Inspect the pagination area",
+          "expected": "Rows per page is **10**; page **1** is current; a *\"Showing x to y of z\"* summary and a record count are shown",
+          "actual": "Rows per page 10; page 1 current; \"Showing 1 to 7 of 7\" and the count \"7 operating countries\" shown.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Open each record's Edit form in turn, or compare with a record just changed",
+          "expected": "Rows are ordered most recently changed first. **Practical check:** the most recently created or changed record is the first row",
+          "actual": "After TC-52857-014 created AUT Opc Rokkqmxm (13:20Z) it was the first row of the default list — most recently changed first.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-045",
+      "title": "[NBO][Company][Operating Country List] Verify searching by part of a name in any letter case lists every Operating Country containing it",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-020 AC-1; story Listing AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - Records whose names contain \"gyp\" exist (STG: Egypt, EgyptWTNBO, Egypt_WT_NBO).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, type `GYP` in the name filter and click Search",
+          "expected": "Every Active record whose name contains \"gyp\" in any case is listed, and only those",
+          "actual": "\"GYP\" → Egypt_WT_NBO, EgyptWTNBO, Egypt — every Active name containing \"gyp\" in any case, and only those.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Read the record count",
+          "expected": "It equals the number of rows listed",
+          "actual": "Count \"3 operating countries\" equals the 3 rows listed.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-046",
+      "title": "[NBO][Company][Operating Country List] Verify searching for an underscore or a percent sign returns only names that actually contain that character",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-020 AC-6",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - At least one Active record name contains `_` (STG: Egypt_WT_NBO), and at least one does not.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, search for `_`",
+          "expected": "Only names containing an underscore are listed",
+          "actual": "\"_\" → only Egypt_WT_NBO.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Search for `%`",
+          "expected": "Only names containing `%` are listed — none on STG today, so the \"no results\" state is shown",
+          "actual": "\"%\" (sent as Name=%25) → \"No operating countries match these filters\".",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-047",
+      "title": "[NBO][Company][Operating Country List] Verify choosing a Country in the filter lists only the Operating Countries bound to that Country",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-020 AC-2",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - Records bound to Egypt and to other countries exist (STG: yes).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, select **Egypt** in the Country filter and click Search",
+          "expected": "Every listed row shows Country **Egypt**",
+          "actual": "Country filter Egypt → 3 rows, every one with Country Egypt.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click Reset and Search",
+          "expected": "Records bound to other countries are listed again",
+          "actual": "Reset + Search → 7 rows including records bound to Kuwait, United States, United Arab Emirates and Saudi Arabia.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-048",
+      "title": "[NBO][Company][Operating Country List] Verify the Inactive filter lists only Inactive records and Both lists Active and Inactive records together",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-020 AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - At least one Inactive record exists. Create one in step 1.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval",
+          "expected": "A *Pending / Inactive* record exists",
+          "actual": "Maker created AUT Opc Wjwmnnpm with Send For Approval → Pending / Inactive (id 20053).",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "As `ADMIN_ALL`, select **Inactive** and click Search",
+          "expected": "Every listed row's Status is **Inactive**; RUN-NAME is included",
+          "actual": "ADMIN_ALL Inactive + Search → 17 records; every row on page 1 InActive; AUT Opc Wjwmnnpm included.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Select **Both** and click Search",
+          "expected": "Active and Inactive rows are both listed; the count is at least the Active count plus one",
+          "actual": "Both + Search → 39 records (Active 22 + Inactive 17, ≥ Active + 1); Active and InActive rows listed together.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-049",
+      "title": "[NBO][Company][Operating Country List] Verify the no-results message appears when the name search matches no Operating Country",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-020 AC-4; REQ-OPC-042 AC-5",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "As stated: - No record name contains `zzqx`.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, type `zzqx` in the name filter and click Search",
+          "expected": "No rows; the message *\"No operating countries match these filters\"* is shown",
+          "actual": "\"zzqx\" → no rows; \"No operating countries match these filters\" (+ \"Nothing matches the current filters. Change them, or clear them to see all operating countries.\").",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-050",
+      "title": "[NBO][Company][Operating Country List] Verify an inactive Country is absent from the list page's Country filter while it is offered on the Add form",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-020 AC-7",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "OPC_COUNTRY_INACTIVE verified read-only at 13:14–13:15Z: Rejected / InActive in the Country master.",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, open the list page's Country filter and type the inactive Country's name",
+          "expected": "It is **not** offered",
+          "actual": "List-page Country filter: the inactive Country (OPC_COUNTRY_INACTIVE) is not offered; type-ahead lands on a different entry.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Open the Add form's Country list and type the same name",
+          "expected": "It **is** offered (contrast — the Add form lists are unfiltered)",
+          "actual": "Add form Country list: the inactive Country is offered and type-ahead lands on it.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Click Cancel",
+          "expected": "Nothing is created",
+          "actual": "Cancel → list, still 7 records; nothing created.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    },
+    {
+      "testCaseId": "TC-52857-051",
+      "title": "[NBO][Company][Operating Country List] Verify moving to page 2 keeps the search criteria and continues the most-recent-first order from page 1",
+      "adoId": null,
+      "requirementReference": "REQ-OPC-022 AC-1, AC-2, AC-4; REQ-OPC-023 AC-2, AC-3",
+      "status": "PASS",
+      "observationOnly": false,
+      "durationMs": null,
+      "classification": null,
+      "reason": null,
+      "suspectedCause": null,
+      "notReached": false,
+      "preconditionCheck": "39 records match Both (more than 10) — no records created (D-09).",
+      "steps": [
+        {
+          "index": 1,
+          "action": "Log in as `ADMIN_ALL`, select **Both** and click Search",
+          "expected": "Page 1 shows 10 rows; the summary shows the total and Next is enabled",
+          "actual": "Both + Search → page 1: 10 rows, \"Showing 1 to 10 of 39\", Next enabled.",
+          "status": "PASS"
+        },
+        {
+          "index": 2,
+          "action": "Click **Next Page**",
+          "expected": "Page 2 is current; the **Both** filter is still applied; rows continue the order from page 1, with no row repeated",
+          "actual": "Next Page → \"Showing 11 to 20\"; Both still applied (no Status parameter); 10 rows, none repeated from page 1; order continues most-recent-first.",
+          "status": "PASS"
+        },
+        {
+          "index": 3,
+          "action": "Click **First Page**",
+          "expected": "Page 1 shows the same 10 rows as before",
+          "actual": "First Page → \"Showing 1 to 10\"; the same 10 rows in the same order.",
+          "status": "PASS"
+        }
+      ],
+      "evidence": [],
+      "observations": [],
+      "bugCandidateId": null
+    }
+  ],
+  "bugCandidates": [
+    {
+      "id": "BUG-001",
+      "file": "bug-candidates/BUG-001.md",
+      "title": "[NBO][Company][Operating Country Status] Activate asks for a confirmation before an inactive Approved record becomes Active",
+      "testCaseIds": [
+        "TC-52857-039"
+      ],
+      "classification": "PRODUCT_BUG",
+      "summary": "Activating an Approved / Inactive Operating Country from the list opens the dialog \"Activate <name>?\" with Cancel / \"Activate Operating country\"; REQ-OPC-030 AC-10 requires activation without a confirmation step. Seen for the Approver (TC-52857-039) and the Maker (TC-52857-040, not asserted there).",
+      "suspectedRootCause": "Activate appears to reuse the Deactivate confirmation pattern; no decision states whether this is intended (unconfirmed).",
+      "status": "Not a Bug",
+      "evidence": [
+        {
+          "path": "evidence/TC-52857-039-step6-activate-confirmation.png",
+          "label": "Confirmation dialog on Activate"
+        }
+      ],
+      "resolution": {
+        "disposition": "NOT_A_BUG",
+        "decidedBy": "human (session decision, 2026-10-10)",
+        "decidedAt": "2026-10-10",
+        "decisionRef": "D-18",
+        "rationale": "Invalid bug report. The human confirmed the observed behaviour is correct: \"I reviewed BUG-001 and BUG-002 from the US-52857 manual execution, and I confirm that neither is a product bug. The observed behaviors are correct.\" D-18 records that Activate asks for a confirmation; TC-52857-039 now expects it. RUN-001's FAIL stays as executed against the earlier expectation (REQ-OPC-030 AC-10)."
+      },
+      "description": "Activating an Approved, Inactive Operating Country from the list opens a confirmation dialog. The requirement at the time of the run said the record becomes Active without a confirmation step.",
+      "preconditions": [
+        "An Operating Country that is Approved / Inactive (RUN-001 used AUT Opc Mnyftfxg, created Approved by ADMIN_ALL, then deactivated by the Approver)."
+      ],
+      "stepsToReproduce": [
+        "Log in as OPERATING_COUNTRIES_APPROVER and open Admin Module → Operating Country.",
+        "Select the Inactive filter, search for the record, and click Search.",
+        "Click Activate on the row."
+      ],
+      "testData": [
+        "Account handles: OPERATING_COUNTRIES_APPROVER (setup by ADMIN_ALL)"
+      ],
+      "expectedResult": "The record becomes Active without a confirmation step (REQ-OPC-030 AC-10; TC-52857-039 step 6 as executed in RUN-001).",
+      "actualResult": "A dialog \"Activate AUT Opc Mnyftfxg?\" opens — \"The record becomes active immediately. You can deactivate it again later.\" — with Cancel and Activate Operating country. Nothing is sent until it is confirmed; after confirming, the record became Active and \"Operating country activated successfully\" was shown.",
+      "requirementReference": "REQ-OPC-030 AC-10",
+      "notes": [
+        "The same dialog was shown to OPERATING_COUNTRIES_MAKER on AUT Opc Fybfrrhp in TC-52857-040, which does not assert this behaviour.",
+        "Resolved after the run as NOT A BUG (D-18). The observation and evidence are kept unchanged."
+      ]
+    },
+    {
+      "id": "BUG-002",
+      "file": "bug-candidates/BUG-002.md",
+      "title": "[NBO][Company][Operating Country Approval] Edit form of a Rejected record offers Reject to an all-permission user",
+      "testCaseIds": [
+        "TC-52857-037"
+      ],
+      "classification": "PRODUCT_BUG",
+      "summary": "The Edit form of a Rejected Operating Country shows Cancel, Approve and Reject to ADMIN_ALL; expected exactly Approve and Cancel (REQ-OPC-046 AC-2). The list row of the same record offers only Approve.",
+      "suspectedRootCause": "The Edit form seems to pick actions from permissions only, not from the record's approval status (unconfirmed).",
+      "status": "Not a Bug",
+      "evidence": [
+        {
+          "path": "evidence/TC-52857-037-step3-rejected-edit-offers-reject.png",
+          "label": "Edit form of the Rejected record with Reject offered"
+        }
+      ],
+      "resolution": {
+        "disposition": "NOT_A_BUG",
+        "decidedBy": "human (session decision, 2026-10-10)",
+        "decidedAt": "2026-10-10",
+        "decisionRef": "D-19",
+        "rationale": "Invalid bug report. The human confirmed the observed behaviour is correct: \"I reviewed BUG-001 and BUG-002 from the US-52857 manual execution, and I confirm that neither is a product bug. The observed behaviors are correct.\" D-19 records that the all-permission Edit form of a Rejected record offers Cancel, Approve and Reject; TC-52857-037 now expects it. RUN-001's FAIL stays as executed against the earlier expectation (REQ-OPC-046 AC-2)."
+      },
+      "description": "The Edit form of an Operating Country whose Approval Status is Rejected offers a Reject action to ADMIN_ALL. The requirement at the time of the run allowed only Approve and Cancel for a Rejected record.",
+      "preconditions": [
+        "An Operating Country in Rejected / Inactive state (RUN-001 used AUT Opc Syhidmpu, id 20050: created with Send For Approval by the Maker, rejected from the list by the Approver with remarks \"Rejected by QA\")."
+      ],
+      "stepsToReproduce": [
+        "Log in as ADMIN_ALL and open Admin Module → Operating Country.",
+        "Select Inactive, search for the Rejected record, and click Edit.",
+        "Inspect the actions in the form footer."
+      ],
+      "testData": [
+        "Account handles: ADMIN_ALL (record created by OPERATING_COUNTRIES_MAKER, rejected by OPERATING_COUNTRIES_APPROVER)"
+      ],
+      "expectedResult": "The actions are exactly Approve and Cancel — no Reject (REQ-OPC-046 AC-2; TC-52857-037 step 3 as executed in RUN-001).",
+      "actualResult": "The footer shows Cancel, Approve and Reject (subtitle \"You decide on this operating country when you save.\"). In the list, the same Rejected row offers only Approve to ADMIN_ALL. Approving from the Edit form then worked: \"Operating Country approved successfully\", record Approved / Active.",
+      "requirementReference": "REQ-OPC-046 AC-2 (Rejected); REQ-OPC-026 AC-4; REQ-OPC-039 AC-1",
+      "notes": [
+        "Reject was not clicked, so what rejecting an already-Rejected record does was not observed (not decided by D-19).",
+        "Resolved after the run as NOT A BUG (D-19). The observation and evidence are kept unchanged."
+      ]
+    }
+  ],
+  "observations": [
+    "The CSV Precondition cell of 32 cases reads \"#NAME?\" — a spreadsheet turned lines beginning \"- \" into formulas: TC-52857-004, TC-52857-006, TC-52857-008, TC-52857-009, TC-52857-010, TC-52857-011, TC-52857-012, TC-52857-013, TC-52857-014, TC-52857-015, TC-52857-016, TC-52857-020, TC-52857-021, TC-52857-024, TC-52857-025, TC-52857-027, TC-52857-028, TC-52857-029, TC-52857-030, TC-52857-031, TC-52857-032, TC-52857-033, TC-52857-034, TC-52857-035, TC-52857-036, TC-52857-037, TC-52857-038, TC-52857-039, TC-52857-040, TC-52857-041, TC-52857-042, TC-52857-043. The CSV was not modified; the content needs restoring by a human.",
+    "Execution paused from about 13:35Z to 17:13Z. The first action after the pause (TC-52857-030 step-1 setup) got HTTP 401 on create and on token refresh and returned to the login page; no record was written. After a fresh login the create was repeated. Session expiry after inactivity — not a result for any case.",
+    "Every Approve, Send For Approval, Update, Deactivate and Activate opens a confirmation dialog before anything is saved; only TC-52857-039 asserts the absence of one (BUG-001).",
+    "Labels as rendered: Approval Status \"Pending\" (not \"Pending for Approval\"), Status \"InActive\".",
+    "Short-lived toasts that had closed before they could be read (TC-52857-014 step 3, TC-52857-027 step 3) were read from the MCP page snapshot taken immediately after the click; the text is quoted as captured.",
+    "Durations are not recorded per case: setup and verification spanned several account sessions (null in this record).",
+    "Records left on STG (created in this run, never deleted — records cannot be deleted; no cleanup was requested). Approved / Active: AUT Opc Rokkqmxm 20026, Isyklodt 20027, Huuxhlei 20028, Nyzsjzmv 20029, Auzfaiut 20031, Rqiuybio 20032, Ustqndtg 20033, Ussruvab 20034, Hbvdwbny 20035, Mnyftfxg 20036, Fybfrrhp 20037, Owpbmnnx 20038, Owkqucho 20044, Frpwmqqc 20049, Syhidmpu 20050. Pending / Inactive: Sapodsyv 20039, Cdnohiej 20040, Aqsubnkt 20041, Dmnelxxy 20042, Dkiiyhmi 20043, Fxbugniz 20046, Wrtfoypv 20047, Uediodof 20048, Pbeutfmx 20051, Wjwmnnpm 20053. Rejected / Inactive: Okifhaxt 20030, Qfkdpedm 20045, Hpkbyyez 20052."
+  ]
+}

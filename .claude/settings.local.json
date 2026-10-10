@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node /tmp/t.ts)",
+      "Bash(node -e \"console.log\\(typeof process.loadEnvFile\\)\")",
+      "Bash(node -e \"console.log\\(typeof fetch, typeof AbortSignal.timeout\\)\")",
+      "Bash(npm install *)",
+      "Bash(echo \"--- install exit: $? ---\")",
+      "Bash(npm run *)",
+      "PowerShell(npm run *)"
+    ]
+  }
+}

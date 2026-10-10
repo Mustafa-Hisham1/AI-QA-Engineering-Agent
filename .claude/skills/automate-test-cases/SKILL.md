@@ -1,7 +1,7 @@
 ---
 name: automate-test-cases
 description: Plan, then generate, deterministic Playwright automation for the approved Test Cases of a User Story whose Need Automation is Yes, organised by Module and traceable to each Test Case ID. Use when asked to automate, script, or write Playwright tests for a User Story's test cases. Takes a User Story ID, optionally narrowed to specific Test Case IDs. Writes an Automation Plan and stops for human review before generating any code; never changes a Test Case, never writes to Azure DevOps.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(npm run automation:scope:*), Bash(npm run automation:list:*), Bash(npm run automation:test:*), Bash(npm run automation:report:*), Bash(npm run automation:verify-artifacts:*), Bash(npm test:*), Bash(npm run typecheck:*), Bash(mkdir:*), Bash(ls:*), Bash(git status:*), Bash(git diff:*), mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_select_option, mcp__playwright__browser_hover, mcp__playwright__browser_wait_for, mcp__playwright__browser_navigate_back, mcp__playwright__browser_tabs, mcp__playwright__browser_close
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(npm run automation:scope:*), Bash(npm run testcases:show:*), Bash(npm run automation:list:*), Bash(npm run automation:test:*), Bash(npm run automation:report:*), Bash(npm run automation:verify-artifacts:*), Bash(npm test:*), Bash(npm run typecheck:*), Bash(mkdir:*), Bash(ls:*), Bash(git status:*), Bash(git diff:*), mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_select_option, mcp__playwright__browser_hover, mcp__playwright__browser_wait_for, mcp__playwright__browser_navigate_back, mcp__playwright__browser_tabs, mcp__playwright__browser_close
 ---
 
 # Automate Test Cases with Playwright
@@ -45,7 +45,12 @@ was supplied, ask and stop.
    `Yes`. **Never re-evaluate, and never edit, a Need Automation value** — not even when a `Yes`
    case turns out to be unautomatable; that is recorded as `NOT AUTOMATED`, below.
 2. **Only `Approved` or `Published` cases are automated.** `Need Automation = Yes` is not approval.
-   This skill never approves, never changes a status, and never writes `test-cases.md`.
+   This skill never approves, never changes a status, and never writes `test-cases.csv` or
+   `test-cases.md`.
+2a. **The CSV is the source of truth** (`docs/product-decisions.md` §6.4). Scope, steps and
+   Expected Results come from the story's `test-cases.csv` as the human last left it — never
+   from `test-cases.md`, an earlier plan, or an earlier recommendation. Read cases with
+   `npm run testcases:show`, not by reading either file by eye.
 3. **No code before an approved plan.** Generating automation code requires an **explicit human
    approval of the Automation Plan in the current session** (`CLAUDE.md` → *Approval gates*).
    Approval of an earlier plan does not carry forward to a changed one.
@@ -65,7 +70,8 @@ was supplied, ask and stop.
 npm run automation:scope -- <ID> --project <KEY>
 ```
 
-It parses the artifact strictly and lists, **grouped by Module**: the in-scope cases (Need
+It parses the story's `test-cases.csv` strictly — the current, human-reviewed Need Automation
+and status values — and lists, **grouped by Module**: the in-scope cases (Need
 Automation = `Yes` **and** `Approved`/`Published`) with each case's plan path and spec path, and
 every excluded case with its reason — `NEED_AUTOMATION_NO`, `NEED_AUTOMATION_UNDECIDED`, or
 `NOT_APPROVED`. If specific TC IDs were requested, narrow to those; a requested ID that is
@@ -73,6 +79,15 @@ excluded is **reported with its reason**, never silently automated.
 
 **Nothing in scope → stop** and report the exclusions. Undecided cases need `/write-test-cases`
 and a human review; unapproved cases need a human approval. Neither is this skill's call.
+
+Then read every in-scope case's steps and Expected Results from the CSV:
+
+```
+npm run testcases:show -- <ID> <TC-ID> … --project <KEY>
+```
+
+A spec asserts exactly what this prints. If the CSV changes after the plan was written, the plan
+and any spec built from it are stale: re-read the CSV and revise the plan before generating code.
 
 ## Step 2 — Inspect the existing framework before writing anything
 
@@ -101,7 +116,8 @@ Read, every time, because it grows between runs:
 3. **Explore** the pages each case touches through the **Playwright MCP server**, under the same
    rules as `execute-test-cases` (Steps 2, 4, 5, 7 of that skill): allow-listed environment only,
    handles resolved into memory only, **never persist an accessibility snapshot** (it shows typed
-   passwords), settle before observing. Exploration only reads the UI — do not submit data that
+   passwords) — including the `.yml` snapshots the MCP server writes to `.artifacts/playwright/`
+   by itself, which are deleted when exploration ends — settle before observing. Exploration only reads the UI — do not submit data that
    changes state unless the Test Case itself requires that state, and say so.
 4. For each step of each case, identify a **stable locator**, in this order of preference:
    `getByRole` with an accessible name → `getByLabel` → `getByTestId` → `getByText` for static
@@ -115,12 +131,16 @@ One plan **per Module**, not per User Story:
 docs/projects/<KEY>/automation/<Module>/automation-plan.md
 ```
 
-`<Module>` is the Module directory name `automation:scope` printed (spaces become `-`). A User
-Story spanning two Modules updates two plans; one Module accumulates cases from many stories.
+`<Module>` is the Module directory path `automation:scope` printed (spaces become `-`). When the
+active profile declares a **sub-module** (a `| Module | Sub-Module | Feature/Page Contains |`
+table, `docs/product-decisions.md` §7.1.2) it is `<Module>/<Sub-Module>` — e.g. NBO's
+`Company/Operating-Country`. Use the path the command prints; never derive it by hand, and never
+edit the CSV's Module to change it. A User Story spanning two Modules updates two plans; one
+Module accumulates cases from many stories.
 
 The plan contains:
 
-1. **Provenance** — project, Module, the source artifact(s) and the content fingerprint of each,
+1. **Provenance** — project, Module, the source `test-cases.csv` file(s) and the content fingerprint of each,
    environment label **and** host explored (verbatim), date.
 2. **Case table** — one row per in-scope case, **never removed once added**:
 
@@ -151,12 +171,19 @@ The plan contains:
 
 ## Step 5 — Generate the code (after explicit approval only)
 
-Layout — project code, organised by Module:
+Layout — project code, organised by Module (`<Module>` is the path `automation:scope` prints,
+sub-module included):
 
 ```
 automation/<KEY>/<Module>/pages/<Feature>Page.ts      Page Objects
 automation/<KEY>/<Module>/tests/TC-<story>-NNN.spec.ts   ONE spec per Test Case
+automation/<KEY>/<Module>/support/<name>.ts            shared run-time data and setup flows
 ```
+
+`support/` (`docs/product-decisions.md` §7.1.2) holds what many specs of a Module repeat — unique
+run-time names, "create a record as role X" — as **actions only**: no assertion, no credential.
+The login page lives in the Module that owns it (e.g. `automation/<KEY>/Authentication/pages/`)
+and is imported, never copied.
 
 Page Objects:
 - One class per page or feature, shared by every spec that touches it; a spec in another Module
@@ -185,12 +212,35 @@ test(
   as `NOT EXECUTED`.
 - **Always pass `testCaseDetails(…)`** — without it the report shows the test as *not
   traceable* and raises no Bug Candidate for it.
+- **"Record …" Expected Results** (and observation-only steps) are recorded, never asserted:
+  `test.info().annotations.push({ type: 'observation', description: 'Step N: <text>' })`. The
+  HTML report shows it under that step as `Recorded: …`, sanitised
+  (`docs/product-decisions.md` §7.2). Assert only what the Expected Result states.
 - **Each step asserts that step's Expected Result** with web-first assertions (`toBeVisible`,
   `toHaveURL`, `toHaveText` on the element the result names). Exact message text only where the
   Test Case states it.
 - **Settle before judging** — wait for the expected condition (`expect(...).toBeVisible()`,
   `toHaveURL`), never read a result immediately after a navigation-triggering action. Fixed waits
-  (`waitForTimeout`) only when no condition exists, with a comment saying why.
+  (`waitForTimeout`) only when no condition exists, with a comment saying why. **Forms can
+  swallow early input:** a field filled before the page finished initialising may be reset
+  (seen on STG 2026-10-10 on both the login form and an Add form). Wait for the page to settle
+  and re-fill a dropped value inside the Page Object — compare in memory, never with an
+  assertion on a credential field.
+- **Read text as authored, not as styled.** `innerText` reflects CSS (`text-transform:
+  uppercase` turned `Name` into `NAME`); compare headers and cells via `textContent`.
+- **Every session is ended — passed or failed** (`docs/product-decisions.md` §7.1.3). The
+  project's login Page Object captures the session's bearer token from the application's own
+  backend requests (in memory, `registerSessionSecret`), calls
+  `registerSession(page, '<HANDLE>', end)` from `src/automation/sessions.ts` right after it submits
+  the login, and ends the previous session (`endOpenSessionsNow`) before another login on the same
+  page. `end` uses the **application's logout API** with that session's own token and
+  `allSessions: false` (NBO: `automation/NBO/Authentication/support/session-api.ts`), then confirms
+  the old token is rejected. The `endSessions` auto fixture ends whatever is still open at
+  teardown; a spec does nothing. **Clearing cookies or storage is not a logout** — the server
+  (Redis) keeps the session; abandoned sessions hit STG's 15-session cap on 2026-10-10. Never log a
+  token. **A failing automated test is investigated as an automation defect first** (locator,
+  timing, data, account, session) — never forwarded as a product bug on the report's provisional
+  classification alone.
 - **Credentials only via `account('<HANDLE>')` / `dataValue('<HANDLE>')`.** A handle with no
   value skips the test as `NOT RUN — TEST_DATA_UNAVAILABLE`; never work around it.
 - **Navigate relative to `appEnv.baseUrl`** (or `baseURL`). Never a literal host.
@@ -210,8 +260,13 @@ test(
 3. Run the generated cases against the allowed environment:
    `npm run automation:test -- --project <KEY> --grep @TC-<story>-NNN`. The global setup refuses
    a missing, unlisted or PROD label before any browser starts.
-4. **Read the HTML execution report** the run wrote — its path is printed as
-   `Execution report: …` (`.artifacts/reports/<KEY>/RUN-<NNN>/execution-report.html`;
+4. **Read the HTML execution report** the run wrote — its paths are printed as
+   `Execution report: …` (the run history) and `Module report: …` (the same run in the Module
+   directory, `automation/<KEY>/<Module path>/automation-report.html` —
+   `docs/product-decisions.md` §7.2). A test that never really ran (interrupted, or its worker
+   died before any step) is `NOT RUN`, not FAIL. The run copy is
+   (`.artifacts/reports/<KEY>/RUN-<NNN>/automation-report.html` — never
+   `manual-report.html`, which belongs to `/execute-test-cases` runs;
    `npm run automation:report -- --project <KEY>` finds the latest). It joins each result with the
    Test Case's steps and Expected Results, names the failed step, and classifies each failure
    **automatically and provisionally** (`docs/product-decisions.md` §7.2). Review that
@@ -244,7 +299,11 @@ changes nothing about PROD — the run is still refused unless its label is allo
 2. Per Module: the plan path, and per case its Automation Status and spec path.
 3. Every `NOT AUTOMATED` case with its category and reason.
 4. Validation results (typecheck, tests, discovery, runs), the **HTML report path**, and every
-   Bug Candidate it holds — stated as a local Draft, not a Bug.
+   Bug Candidate it holds — stated as a local Draft, not a Bug. The report shows them in its
+   **Bug Report** section. If a human later resolves one (`Confirmed` / `Not a Bug`,
+   `docs/product-decisions.md` §10.6), record `status` and `resolution` on that candidate in the
+   run's stored `execution-results.json` and re-render with
+   `npm run automation:report -- --project <KEY> --run RUN-<NNN>`; never change the run's results.
 5. Confirmation that **no Test Case was modified**, **no Need Automation value changed**, **no
    Azure DevOps write occurred**, and nothing was committed.
 

@@ -105,15 +105,15 @@ function checkReport(problems: string[]): void {
     if (signatureOf(join(attachments, name)) !== expected) problems.push(`attachments/${name}: content is not a genuine ${expected.toUpperCase()}`);
   }
 
-  const html = readFileSync(join(RUN_DIR, 'execution-report.html'), 'utf8');
+  const html = readFileSync(join(RUN_DIR, 'automation-report.html'), 'utf8');
   for (const [, attribute, value] of html.matchAll(/\b(src|href)="([^"]*)"/g)) {
     if (value!.startsWith('#')) continue;
     const safe = /^attachments\/[A-Za-z0-9._-]+\.(png|webm)$/.test(value!) && existsSync(join(RUN_DIR, value!));
-    if (!safe) problems.push(`execution-report.html: ${attribute}="${value}" points outside the run's attachments/`);
+    if (!safe) problems.push(`automation-report.html: ${attribute}="${value}" points outside the run's attachments/`);
   }
   for (const id of [...FAILING, ...PASSING]) {
     if (!html.includes(`<video controls preload="metadata" src="attachments/${id}.webm">`)) {
-      problems.push(`execution-report.html: no playable video for ${id}`);
+      problems.push(`automation-report.html: no playable video for ${id}`);
     }
   }
 }
@@ -132,7 +132,7 @@ async function main(): Promise<number> {
     return 2;
   }
 
-  const required = ['execution-report.html', 'execution-results.json', 'bug-candidates/BUG-001.md'];
+  const required = ['automation-report.html', 'execution-results.json', 'bug-candidates/BUG-001.md'];
   const missing = required.filter((file) => !existsSync(join(RUN_DIR, file)));
   if (missing.length > 0) {
     console.error(`INVALID: the execution report was not fully written (missing ${missing.join(', ')} in ${RUN_DIR}).`);

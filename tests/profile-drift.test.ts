@@ -33,6 +33,7 @@ import {
   readProfileSettings,
   resolveActiveProject,
 } from '../src/projects/active-project.ts';
+import { loadTestCasesFromCsvFile } from '../src/testcases/store.ts';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const PROJECTS_ROOT = join(REPO_ROOT, 'docs', 'projects');
@@ -41,39 +42,31 @@ const PROJECTS_ROOT = join(REPO_ROOT, 'docs', 'projects');
 // and shared with the automation fixtures.
 
 /**
- * Extracts handles from the `**Test Data**` blocks of a Test Case artifact.
+ * Extracts handles from the Test Data column of a story's `test-cases.csv` —
+ * the source of truth execution reads (`docs/product-decisions.md` §6.4).
  *
- * Scoped to those blocks deliberately: a handle named in a step or a note is
- * prose, while the Test Data block is where a case declares what it will
- * actually resolve at execution time. Scanning the whole file would sweep up
- * requirement IDs and story keys.
+ * Scoped to Test Data deliberately: a handle named in a step or a note is
+ * prose, while Test Data is where a case declares what it will actually
+ * resolve at execution time. Scanning every column would sweep up requirement
+ * IDs and story keys.
  */
-function handlesUsedInArtifact(filePath: string): Set<string> {
-  const lines = readFileSync(filePath, 'utf8').split(/\r?\n/);
+function handlesUsedInArtifact(filePath: string, storyDir: string): Set<string> {
+  const storyId = Number(storyDir.replace(/^US-/, ''));
   const used = new Set<string>();
-  let inTestData = false;
-
-  for (const line of lines) {
-    if (line.trim() === '**Test Data**') {
-      inTestData = true;
-      continue;
-    }
-    // Any other bold section heading closes the block.
-    if (inTestData && line.startsWith('**')) inTestData = false;
-    if (inTestData) for (const handle of findHandles(line)) used.add(handle);
+  for (const testCase of loadTestCasesFromCsvFile(filePath, storyId).testCases) {
+    for (const line of testCase.testData) for (const handle of findHandles(line)) used.add(handle);
   }
-
   return used;
 }
 
-/** Every `test-cases.md` under a project, with the story it belongs to. */
+/** Every `test-cases.csv` under a project, with the story it belongs to. */
 function testCaseArtifacts(projectRoot: string): { storyDir: string; path: string }[] {
   const root = join(projectRoot, 'test-cases');
   if (!existsSync(root)) return [];
 
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .map((entry) => ({ storyDir: entry.name, path: join(root, entry.name, 'test-cases.md') }))
+    .map((entry) => ({ storyDir: entry.name, path: join(root, entry.name, 'test-cases.csv') }))
     .filter((entry) => existsSync(entry.path));
 }
 
@@ -102,7 +95,7 @@ for (const key of PROJECT_KEYS) {
     const undeclared = new Map<string, string[]>();
 
     for (const { storyDir, path } of artifacts) {
-      for (const handle of handlesUsedInArtifact(path)) {
+      for (const handle of handlesUsedInArtifact(path, storyDir)) {
         if (declared.has(handle)) continue;
         const stories = undeclared.get(handle) ?? [];
         stories.push(storyDir);
@@ -130,8 +123,8 @@ for (const key of PROJECT_KEYS) {
   test(`${key}: handles declared but not yet used are reported, not failed`, () => {
     const declared = readProfileHandles(project);
     const used = new Set<string>();
-    for (const { path } of testCaseArtifacts(project.root)) {
-      for (const handle of handlesUsedInArtifact(path)) used.add(handle);
+    for (const { storyDir, path } of testCaseArtifacts(project.root)) {
+      for (const handle of handlesUsedInArtifact(path, storyDir)) used.add(handle);
     }
 
     const unused = [...declared].filter((handle) => !used.has(handle)).sort();

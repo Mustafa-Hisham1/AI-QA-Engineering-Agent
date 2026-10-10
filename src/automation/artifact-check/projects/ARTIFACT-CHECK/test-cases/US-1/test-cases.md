@@ -8,6 +8,10 @@ TC-1-001…003 fail on purpose and TC-1-004 passes on purpose. See `src/automati
 
 ---
 
+<!-- BEGIN GENERATED TEST CASES: rendered from test-cases.csv. Edit the CSV, then run `npm run testcases:render`. -->
+
+## Login Form
+
 ### TC-1-001 — Submitting the form shows a page that never appears
 
 | | |
@@ -98,3 +102,13 @@ TC-1-001…003 fail on purpose and TC-1-004 passes on purpose. See `src/automati
 |---|---|---|
 | 1 | Enter the credentials | The values are accepted |
 | 2 | Confirm the login form is shown | The "Artifact check" heading is visible |
+
+---
+
+## Rejected test cases
+
+None. A case the human rejects moves here with status `Rejected` and keeps its original ID, which is never
+reused (`docs/product-decisions.md` §6.1).
+
+<!-- END GENERATED TEST CASES -->
+

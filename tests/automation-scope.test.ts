@@ -16,11 +16,12 @@ import { fileURLToPath } from 'node:url';
 import {
   automationPlanPathFor,
   moduleDirName,
+  modulePathFor,
   selectAutomationScope,
   specPathFor,
 } from '../src/automation/scope.ts';
 import { testCaseDetails } from '../src/automation/traceability.ts';
-import type { ActiveProject } from '../src/projects/active-project.ts';
+import { parseSubModuleTable, type ActiveProject } from '../src/projects/active-project.ts';
 import { parseArtifact } from '../src/testcases/artifact.ts';
 import type { TestCaseArtifact } from '../src/testcases/model.ts';
 
@@ -172,4 +173,49 @@ test('testCaseDetails refuses an ID that does not belong to the story, or is mal
   // A spec copied from a neighbour with only one field edited would trace to the wrong case.
   throws(() => testCaseDetails({ testCaseId: 'TC-53717-006', storyId: 52860 }), /does not belong to User Story 52860/);
   throws(() => testCaseDetails({ testCaseId: 'TC-53717', storyId: 53717 }), /not a Test Case ID/);
+});
+
+test('a declared sub-module places a case under <Module>/<Sub-Module> without changing its Module', () => {
+  const subModules = [{ module: 'Company', subModule: 'Operating Country', featureMatch: 'Operating Country' }];
+  strictEqual(modulePathFor({ module: 'Company', featurePage: 'Add Operating Country' }, subModules), 'Company/Operating-Country');
+  strictEqual(modulePathFor({ module: 'Company', featurePage: 'operating country list' }, subModules), 'Company/Operating-Country');
+  // Another feature of the same Module, and another Module, are unaffected.
+  strictEqual(modulePathFor({ module: 'Company', featurePage: 'Branch List' }, subModules), 'Company');
+  strictEqual(modulePathFor({ module: 'City', featurePage: 'Operating Country' }, subModules), 'City');
+  strictEqual(modulePathFor({ module: 'Company', featurePage: 'Add Operating Country' }), 'Company');
+});
+
+test('the longest matching phrase wins when two sub-modules could claim a case', () => {
+  const subModules = [
+    { module: 'Company', subModule: 'Country', featureMatch: 'Country' },
+    { module: 'Company', subModule: 'Operating Country', featureMatch: 'Operating Country' },
+  ];
+  strictEqual(modulePathFor({ module: 'Company', featurePage: 'Operating Country Status' }, subModules), 'Company/Operating-Country');
+});
+
+test('scope paths follow the sub-module, and the record keeps its Module', () => {
+  const [scoped] = selectAutomationScope(DEMO, artifactWith(), [
+    { module: 'Authentication', subModule: 'Admin Login', featureMatch: '' + artifactWith().testCases[0]!.featurePage },
+  ]).inScope;
+  strictEqual(scoped!.moduleDir, 'Authentication/Admin-Login');
+  strictEqual(scoped!.testCase.module, 'Authentication');
+  strictEqual(scoped!.planPath, 'docs/projects/DEMO/automation/Authentication/Admin-Login/automation-plan.md');
+  ok(scoped!.specPath.startsWith('automation/DEMO/Authentication/Admin-Login/tests/'));
+});
+
+test('the profile sub-module table is parsed; any other table is ignored', () => {
+  const text = [
+    '| Setting | Value |',
+    '|---|---|',
+    '| Project Key | DEMO |',
+    '',
+    '| Module | Sub-Module | Feature/Page Contains |',
+    '|---|---|---|',
+    '| Company | Operating Country | `Operating Country` |',
+    '',
+    '| Module | Feature / Page | Story |',
+    '| Company | Branch | US 1 |',
+  ].join('\n');
+  deepStrictEqual(parseSubModuleTable(text), [{ module: 'Company', subModule: 'Operating Country', featureMatch: 'Operating Country' }]);
+  deepStrictEqual(parseSubModuleTable('no table here'), []);
 });

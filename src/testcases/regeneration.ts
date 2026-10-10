@@ -1,11 +1,10 @@
 /**
  * Checks that regenerating a Test Case artifact kept what it must keep.
  *
- * `/write-test-cases` regenerates the artifact by rewriting Markdown, so the
- * preservation rules (CLAUDE.md, `docs/product-decisions.md` §6.1, §6.3) would
+ * `/write-test-cases` revises the CSV on a regeneration, so the preservation
+ * rules (CLAUDE.md, `docs/product-decisions.md` §6.1, §6.3, §6.4) would
  * otherwise rest on the writer remembering them. These checks make them
- * verifiable: compare the artifact as it was before regeneration with the
- * artifact after it.
+ * verifiable: compare the CSV as it was before regeneration with the CSV after.
  *
  * Pure functions over parsed artifacts — no file system, no Azure DevOps.
  */
@@ -74,6 +73,52 @@ export function findRegenerationLosses(previous: TestCaseArtifact, next: TestCas
   }
 
   return losses;
+}
+
+/** A case whose content differs between two versions of the CSV. */
+export interface ContentChange {
+  readonly localId: string;
+  /** Changed fields, by name. */
+  readonly fields: readonly string[];
+}
+
+const CONTENT_FIELDS = [
+  'summary',
+  'section',
+  'sectionNote',
+  'title',
+  'project',
+  'module',
+  'featurePage',
+  'testType',
+  'requirementReference',
+  'decisionsApplied',
+  'precondition',
+  'testData',
+  'steps',
+  'notes',
+] as const satisfies readonly (keyof TestCaseRecord)[];
+
+/**
+ * Lists every case whose content changed between `previous` and `next`, and
+ * every case added. Not a failure: a regeneration is allowed to revise cases.
+ * It makes the revision visible, so the human sees which cases the agent
+ * touched — and can spot one of their own CSV edits being undone.
+ */
+export function findContentChanges(previous: TestCaseArtifact, next: TestCaseArtifact): ContentChange[] {
+  const previousById = new Map<string, TestCaseRecord>(previous.testCases.map((entry) => [entry.localId, entry]));
+  const changes: ContentChange[] = [];
+
+  for (const after of next.testCases) {
+    const before = previousById.get(after.localId);
+    if (!before) {
+      changes.push({ localId: after.localId, fields: ['(new case)'] });
+      continue;
+    }
+    const fields = CONTENT_FIELDS.filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]));
+    if (fields.length > 0) changes.push({ localId: after.localId, fields });
+  }
+  return changes;
 }
 
 /** IDs of cases that record no Need Automation decision, in file order. */

@@ -14,8 +14,9 @@
 import { existsSync } from 'node:fs';
 
 import { selectAutomationScope, type ScopedCase } from '../automation/scope.ts';
-import { ProjectError, describeActiveProject, resolveActiveProject } from '../projects/active-project.ts';
-import { ArtifactError, artifactPathFor, parseArtifact } from '../testcases/artifact.ts';
+import { ProjectError, describeActiveProject, readProfileSubModules, resolveActiveProject } from '../projects/active-project.ts';
+import { ArtifactError } from '../testcases/artifact.ts';
+import { csvPathFor, loadTestCases } from '../testcases/store.ts';
 
 function parseArgs(argv: readonly string[]): { id: number | null; project: string | null } {
   let id: number | null = null;
@@ -42,19 +43,21 @@ function main(): number {
   }
 
   const project = resolveActiveProject(args.project);
-  const artifactPath = artifactPathFor(project.root, args.id);
-  const artifact = parseArtifact(artifactPath, args.id);
-  const { inScope, excluded } = selectAutomationScope(project, artifact);
+  // Scope comes from the CSV as it stands now — the human-reviewed Need
+  // Automation and status values — never from the Markdown (§6.4).
+  const artifactPath = csvPathFor(project.root, args.id);
+  const artifact = loadTestCases(project.root, args.id);
+  const { inScope, excluded } = selectAutomationScope(project, artifact, readProfileSubModules(project));
 
   console.log(`Active project: ${describeActiveProject(project)}`);
-  console.log(`Artifact:       ${artifactPath}`);
+  console.log(`Test case CSV:  ${artifactPath}`);
   console.log(`Cases:          ${artifact.testCases.length} — ${inScope.length} in automation scope, ${excluded.length} excluded`);
 
   const byModule = new Map<string, ScopedCase[]>();
   for (const entry of inScope) {
-    const group = byModule.get(entry.testCase.module) ?? [];
+    const group = byModule.get(entry.moduleDir) ?? [];
     group.push(entry);
-    byModule.set(entry.testCase.module, group);
+    byModule.set(entry.moduleDir, group);
   }
 
   for (const [module, cases] of byModule) {

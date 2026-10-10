@@ -32,7 +32,10 @@ export type ExclusionReason =
 export interface ScopedCase {
   readonly testCase: TestCaseRecord;
   readonly storyId: number;
-  /** Directory name for the case's Module, e.g. `Authentication`, `User-Management`. */
+  /**
+   * Directory path for the case's Module, e.g. `Authentication`, `User-Management`,
+   * or `Company/Operating-Country` when the profile declares a sub-module.
+   */
   readonly moduleDir: string;
   readonly planPath: string;
   readonly specPath: string;
@@ -69,14 +72,45 @@ export function moduleDirName(module: string): string {
   return dir;
 }
 
-/** `docs/projects/<KEY>/automation/<Module>/automation-plan.md` */
-export function automationPlanPathFor(project: ActiveProject, module: string): string {
-  return `${project.root}/automation/${moduleDirName(module)}/automation-plan.md`;
+/**
+ * A sub-module the active project's profile declares: the cases of `module`
+ * whose Feature/Page contains `featureMatch` (case-insensitive) live under
+ * `<Module>/<Sub-Module>/` (human decision 2026-10-10, NBO: Company > Operating
+ * Country). The Test Case's own Module field is never changed — the CSV is the
+ * source of truth (§6.4) — only where its plan and code live.
+ */
+export interface SubModule {
+  readonly module: string;
+  readonly subModule: string;
+  readonly featureMatch: string;
 }
 
-/** `automation/<KEY>/<Module>/tests/TC-<story>-NNN.spec.ts` — one spec per Test Case. */
-export function specPathFor(project: ActiveProject, testCase: TestCaseRecord): string {
-  return `automation/${project.key}/${moduleDirName(testCase.module)}/tests/${testCase.localId}.spec.ts`;
+/**
+ * The Module directory path for a case: `<Module>`, or `<Module>/<Sub-Module>`
+ * when a declared sub-module claims its Feature/Page. The longest matching
+ * phrase wins, so two sub-modules of one Module cannot both claim a case.
+ */
+export function modulePathFor(testCase: Pick<TestCaseRecord, 'module' | 'featurePage'>, subModules: readonly SubModule[] = []): string {
+  const feature = testCase.featurePage.trim().toLowerCase();
+  const match = subModules
+    .filter((entry) => entry.module.trim() === testCase.module.trim() && feature.includes(entry.featureMatch.trim().toLowerCase()))
+    .sort((a, b) => b.featureMatch.trim().length - a.featureMatch.trim().length)[0];
+  const top = moduleDirName(testCase.module);
+  return match ? `${top}/${moduleDirName(match.subModule)}` : top;
+}
+
+/** `docs/projects/<KEY>/automation/<Module path>/automation-plan.md` */
+export function automationPlanPathFor(project: ActiveProject, modulePath: string): string {
+  const dir = modulePath
+    .split('/')
+    .map((part) => moduleDirName(part))
+    .join('/');
+  return `${project.root}/automation/${dir}/automation-plan.md`;
+}
+
+/** `automation/<KEY>/<Module path>/tests/TC-<story>-NNN.spec.ts` — one spec per Test Case. */
+export function specPathFor(project: ActiveProject, testCase: TestCaseRecord, subModules: readonly SubModule[] = []): string {
+  return `automation/${project.key}/${modulePathFor(testCase, subModules)}/tests/${testCase.localId}.spec.ts`;
 }
 
 /**
@@ -85,7 +119,11 @@ export function specPathFor(project: ActiveProject, testCase: TestCaseRecord): s
  * In scope means BOTH: Need Automation = Yes, AND Approved/Published. Every
  * other case is returned with its reason — nothing is dropped silently.
  */
-export function selectAutomationScope(project: ActiveProject, artifact: TestCaseArtifact): AutomationScope {
+export function selectAutomationScope(
+  project: ActiveProject,
+  artifact: TestCaseArtifact,
+  subModules: readonly SubModule[] = [],
+): AutomationScope {
   const inScope: ScopedCase[] = [];
   const excluded: ExcludedCase[] = [];
 
@@ -113,12 +151,13 @@ export function selectAutomationScope(project: ActiveProject, artifact: TestCase
       continue;
     }
 
+    const moduleDir = modulePathFor(testCase, subModules);
     inScope.push({
       testCase,
       storyId: artifact.storyId,
-      moduleDir: moduleDirName(testCase.module),
-      planPath: automationPlanPathFor(project, testCase.module),
-      specPath: specPathFor(project, testCase),
+      moduleDir,
+      planPath: automationPlanPathFor(project, moduleDir),
+      specPath: specPathFor(project, testCase, subModules),
     });
   }
 

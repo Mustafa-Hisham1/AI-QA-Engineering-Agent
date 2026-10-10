@@ -1,7 +1,7 @@
 ---
 name: execute-test-cases
-description: Execute approved Web UI Test Cases against an allow-listed environment using the Playwright MCP server, recording step-level PASS/FAIL/BLOCKED/SKIPPED results with Expected vs Actual and evidence. Use when asked to execute, run, or re-run the approved test cases of a User Story, or a single Test Case, against a web environment. Takes a User Story ID, optionally narrowed to specific Test Case IDs. Never writes to Azure DevOps; a failure classified PRODUCT_BUG stops for human review.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(mkdir:*), Bash(mv:*), Bash(ls:*), Bash(grep:*), Bash(git status:*), Bash(git diff:*), mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_select_option, mcp__playwright__browser_hover, mcp__playwright__browser_wait_for, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_console_messages, mcp__playwright__browser_network_requests, mcp__playwright__browser_navigate_back, mcp__playwright__browser_handle_dialog, mcp__playwright__browser_tabs, mcp__playwright__browser_resize, mcp__playwright__browser_close
+description: Execute approved Web UI Test Cases against an allow-listed environment using the Playwright MCP server, recording step-level PASS/FAIL/BLOCKED/SKIPPED results with Expected vs Actual and evidence. Use when asked to execute, run, or re-run the approved test cases of a User Story, or a single Test Case, against a web environment. Takes a User Story ID, optionally narrowed to specific Test Case IDs. Never writes to Azure DevOps; a failure classified PRODUCT_BUG becomes a local Bug Candidate for human review and the run continues — it stops only when continuing is unsafe or impossible.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(npm run testcases:show:*), Bash(npm run execution:report:*), Bash(mkdir:*), Bash(mv:*), Bash(ls:*), Bash(grep:*), Bash(git status:*), Bash(git diff:*), mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill_form, mcp__playwright__browser_press_key, mcp__playwright__browser_select_option, mcp__playwright__browser_hover, mcp__playwright__browser_wait_for, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_console_messages, mcp__playwright__browser_network_requests, mcp__playwright__browser_navigate_back, mcp__playwright__browser_handle_dialog, mcp__playwright__browser_tabs, mcp__playwright__browser_resize, mcp__playwright__browser_close
 ---
 
 # Execute Test Cases against a web environment
@@ -59,8 +59,9 @@ Test Cases are independently executable (`docs/product-decisions.md` §4), so an
    `Needs-Changes` and `Rejected` are refused — executing unapproved content produces results
    nobody agreed to (invariant 1). If the requested scope contains none, **stop** and say so.
 2. **Never modify a Test Case.** Not its steps, expected results, status, or Azure DevOps ID.
-   Execution reads `test-cases.md`; it never writes to it. A test case that looks wrong is
-   **reported**, never corrected mid-run.
+   Execution reads the story's `test-cases.csv` — the single source of truth for test-case
+   content (`docs/product-decisions.md` §6.4) — and never writes to it or to `test-cases.md`.
+   A test case that looks wrong is **reported**, never corrected mid-run.
 3. **Never invent a step, an Expected Result, or a business rule.** Verify exactly what the case
    states. If a case is ambiguous, execute what it says and record the ambiguity as an
    observation.
@@ -71,22 +72,33 @@ Test Cases are independently executable (`docs/product-decisions.md` §4), so an
 6. **Never persist a credential** — not in an artifact, a log, a report, a screenshot, a
    filename, or source code, and never printed in the response (invariant 7).
 7. **A failed assertion is not automatically a bug.** Classify first (*Step 8*). Only
-   `PRODUCT_BUG` proceeds to a Bug Candidate, and that **stops for human review**.
+   `PRODUCT_BUG` proceeds to a Bug Candidate, which **waits for human review — the run does not**.
+   **A product bug never stops the run** (*Step 6a*): the case is FAIL, the Bug Candidate is
+   written, and the next case runs.
 8. **No Azure DevOps writes of any kind.** Not results, not runs, not bugs.
 9. **Do not commit or push.**
 10. **Never overwrite a previous run.** Every execution gets a fresh run ID (*Step 3*).
 
 ## Step 1 — Load the Test Cases
 
-```
-docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md
+```bash
+npm run testcases:show -- <ID> [<TC-ID> …] --project <KEY>
 ```
 
-- **Missing** → stop. Report that US <ID> has no Test Case artifact and that `write-test-cases`
-  must run first.
+This prints the cases **from `test-cases.csv`, through the strict parser** — the current,
+human-reviewed content, including any edit made after generation. Execute exactly what it prints.
+**Do not read the cases from `test-cases.md`**: it is a rendering and may be out of date (the
+command says so when it is), and if the two disagree the CSV wins. Do not read the CSV by eye
+either — quoted multiline fields are easy to misread; the command parses them correctly.
+
+- **No CSV** → stop. If only `test-cases.md` exists it is a legacy artifact that must be migrated
+  (`npm run testcases:migrate`); otherwise `write-test-cases` must run first.
+- **The command reports a parse error** → stop and report it. Never execute a case the strict
+  parser refuses.
 - Read each in-scope case in full: ID, title, Azure DevOps ID, Review/Lifecycle Status,
   Test Type, Requirement Reference, Precondition, Test Data handles, and every step with its
   Expected Result.
+- Record in the run's provenance that the cases were read from `test-cases.csv`.
 
 Then decide what is actually executable:
 
@@ -130,12 +142,17 @@ create the next one:
 
 ```
 docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/
-  execution-results.md
-  evidence/
+  execution-results.md       human-readable record (Step 9)
+  execution-results.json     structured record — the report's only input (Step 9)
+  manual-report.html         the MANUAL HTML report (Step 11, mandatory)
+  evidence/                  screenshots (gitignored)
+  bug-candidates/            local Bug Candidates, if any (Step 10)
 ```
 
 **Never write into an existing run directory.** Re-executing a case after a fix is a **new run**;
-history is what makes a flaky result visible.
+history is what makes a flaky result visible. A manual run never holds `automation-report.html`
+— that is the automation report, written elsewhere (`.artifacts/reports/`); the tooling refuses
+to put either report into the other's run directory.
 
 `evidence/` is **gitignored** — evidence stays local unless a human decides otherwise.
 
@@ -211,6 +228,41 @@ open question — that needs a human decision.
 Anything noticed that belongs to a **different** Test Case is an **observation**, recorded in the
 artifact, explicitly marked as unverified, and **not** a result for the executed case.
 
+## Step 6a — After each case: continue, or stop
+
+**Execute every eligible case unless a legitimate stop condition occurs**
+(`docs/product-decisions.md` §10.5; the rule is code — `src/execution/run-policy.ts`, and
+`execution:report` refuses a record that breaks it).
+
+**A product bug never stops the run.** A case that fails on a suspected `PRODUCT_BUG` is recorded
+as **FAIL**, its Bug Candidate is written (*Step 10*), and **the next case runs**. Test Cases are
+independently executable (§4): one case's defect is never a reason to skip another. Never mark a
+case SKIPPED because of a bug found elsewhere — the report command refuses that.
+
+`TEST_DATA_ISSUE`, `TEST_SCRIPT_ISSUE` and `UNKNOWN` affect only their own case: record it
+(BLOCKED or FAIL) and continue.
+
+**Stop only when continuing is unsafe or technically impossible** — one of exactly these:
+
+| Condition | When |
+|---|---|
+| `ENVIRONMENT_UNAVAILABLE` | The reachability check fails, **or** two consecutive cases fail on `ENVIRONMENT_ISSUE` / `NETWORK_ISSUE` — the environment is consistently failing. One transient failure is retried and recorded, then the run continues |
+| `AUTHENTICATION_BROKEN` | The login itself is broken for the accounts the remaining cases need, **or** two consecutive cases fail on `AUTHENTICATION_ISSUE` |
+| `BLOCKING_ISSUE` | An issue makes every later result unreliable (e.g. the application build changed mid-run) |
+| `DESTRUCTIVE_RISK` | Continuing could make unintended destructive changes or corrupt shared test data |
+
+When you stop:
+
+1. **Keep every result collected so far.** Nothing executed is discarded or re-graded.
+2. Record each remaining eligible case as **SKIPPED** with `"notReached": true` and the reason
+   *"Not executed — the run stopped: <CONDITION>"*.
+3. Record the stop in `execution-results.json` as `"completion": { "status": "STOPPED", "condition",
+   "explanation", "afterTestCaseId" }` — the condition must match what was recorded (an
+   environment stop after a case classified `ENVIRONMENT_ISSUE` or `NETWORK_ISSUE`, an
+   authentication stop after `AUTHENTICATION_ISSUE`).
+4. **Still write all records and generate the report** (*Steps 9–11*), then tell the human what
+   stopped the run.
+
 ## Step 7 — Capture evidence
 
 - **Failures: always.** Screenshot the failing state, plus console errors and relevant network
@@ -224,6 +276,12 @@ artifact, explicitly marked as unverified, and **not** a result for the executed
 **Never persist an accessibility snapshot that contains a secret.** The accessibility tree
 returns typed values **in plain text, including passwords the UI masks on screen.** Snapshots are
 for reading state in-session; they are **not** an evidence format.
+
+**The MCP server persists snapshots by itself.** It saves a `page-<timestamp>.yml` (and a
+`console-<timestamp>.log`) under `.artifacts/playwright/` after almost every action — after a login
+those files hold the typed password. When the run ends, close the browser, **delete every file this
+session created in `.artifacts/playwright/`**, and confirm none remains that contains a credential
+(`docs/product-decisions.md` §10.1). Never move one of them into `evidence/`.
 
 **Rendered screenshots are the evidence format** — and only when they do not expose a secret.
 Before saving a screenshot of any view where a credential was entered or revealed (a shown
@@ -278,9 +336,81 @@ Status meanings are fixed (`docs/product-decisions.md` §8) — **PASS** all exp
 satisfied; **FAIL** one or more not satisfied; **BLOCKED** could not proceed; **SKIPPED**
 intentionally not executed. Do not let them drift.
 
-## Step 10 — If and only if a failure is `PRODUCT_BUG`
+### The structured record — `execution-results.json`
 
-**Stop. Do not continue executing the remaining cases until the human has reviewed it.**
+Write the same results, **only what was recorded**, as `execution-results.json` in the run
+directory (`docs/product-decisions.md` §10.4). It is the only input of the HTML report, and it is
+validated strictly — a malformed record produces no report:
+
+```json
+{
+  "executionType": "MANUAL",
+  "project": "<KEY>",
+  "runId": "RUN-<NNN>",
+  "userStory": { "id": <ID>, "title": "<story title, or null if not known>" },
+  "environment": { "label": "<APP_ENV label>", "host": "<target host, verbatim>" },
+  "startedAt": "<ISO 8601>", "finishedAt": "<ISO 8601, or null>",
+  "executedBy": "AI agent via Playwright MCP",
+  "testCaseSource": { "path": "docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv", "sha256": "<as printed by testcases:show>" },
+  "completion": { "status": "COMPLETED" }   // or STOPPED with condition, explanation, afterTestCaseId (Step 6a)
+  "results": [{
+    "testCaseId": "TC-<ID>-NNN", "title": "…", "adoId": <number or null>, "requirementReference": "… or null",
+    "status": "PASS | FAIL | BLOCKED | SKIPPED", "observationOnly": false, "durationMs": <number or null>,
+    "classification": "<§9 value, required for FAIL and BLOCKED; null for PASS>",
+    "reason": "<what was OBSERVED — required for every non-PASS status>",
+    "suspectedCause": "<a hypothesis about why, clearly unconfirmed — or null>",
+    "notReached": false, "preconditionCheck": "… or null",
+    "steps": [{ "index": 1, "action": "<as the CSV states>", "expected": "<as the CSV states>",
+                "actual": "<what was observed>", "status": "PASS | FAIL | BLOCKED | NOT EXECUTED | OBSERVED" }],
+    "evidence": [{ "path": "evidence/<file>.png", "label": "…" }],
+    "observations": ["… (unverified)"], "bugCandidateId": "<BUG-CANDIDATE-n, or null>"
+  }],
+  "bugCandidates": [{ "id": "BUG-CANDIDATE-n", "file": "bug-candidates/BUG-CANDIDATE-n.md", "title": "…",
+                      "testCaseIds": ["<every case this one defect failed>"], "classification": "PRODUCT_BUG",
+                      "summary": "<the confirmed observation>", "suspectedRootCause": "<unconfirmed — or null>", "status": "Draft",
+                      "resolution": null,
+                      "description": "…", "preconditions": ["…"], "stepsToReproduce": ["…"], "testData": ["by handle"],
+                      "expectedResult": "…", "actualResult": "<confirmed>", "requirementReference": "…", "notes": ["…"],
+                      "evidence": [{ "path": "evidence/<file>.png", "label": "…" }] }],
+  "observations": ["run-level, unverified"]
+}
+```
+
+- **Never store totals** — the report derives them from `results`, so they cannot disagree.
+- **Bug Candidate detail.** Copy the Bug Candidate file's fields into its entry —
+  `description`, `preconditions`, `stepsToReproduce`, `testData` (handles only), `expectedResult`,
+  `actualResult`, `requirementReference`, `notes` — so the report's **Bug Report** section shows
+  them (`docs/product-decisions.md` §10.6). They are optional; without them the section falls back
+  to `summary`.
+- **`status` is `Draft` and `resolution` is `null`** in every run you write. Only a human review,
+  after the run, moves a candidate to `Confirmed` or `Not a Bug` — see *Recording a human review*.
+- **Observed vs suspected.** `reason` and a Bug Candidate's `summary` state only what was
+  **confirmed** — what the application did. A hypothesis about *why* goes in `suspectedCause` /
+  `suspectedRootCause`, worded as unconfirmed. The report labels the two apart.
+- **`notReached: true`** only for cases left unexecuted because the run **stopped** (Step 6a).
+- **`OBSERVED`** is the step status of an observation-only step: recorded, not asserted.
+- **Steps and Expected Results are copied from the CSV as executed**; the report states when the
+  CSV has changed since (it compares the sha256).
+- **Handles, never values.** The report command refuses a record containing the value of any
+  configured handle or credential — write `OPC_COUNTRY_INACTIVE`, not the country it names.
+- Evidence paths must point into `evidence/`, Bug Candidate files into `bug-candidates/`, and every
+  one must exist — the command checks.
+
+## Step 10 — If and only if a failure is `PRODUCT_BUG`: record it, then continue
+
+**Record the case as FAIL, write its Bug Candidate, and continue with the next case** (*Step 6a*).
+The Bug Candidate waits for human review; the run does not. Review happens once the run's
+report is generated.
+
+### One defect, one Bug Candidate
+
+Before writing a new Bug Candidate, compare it with the ones **already raised in this run**. When
+the evidence clearly shows the **same underlying defect** — the same failing behaviour, at the
+same point, with the same symptom — do **not** raise a second one: add the new Test Case to the
+existing candidate's `testCaseIds`, link the case to it, and add the new evidence. When it is
+only *similar*, raise a separate candidate and say in each that they may be related — merging
+two different defects hides one of them. `execution:report` refuses two candidates with the same
+title.
 
 ### Duplicate check — the owning User Story ONLY
 
@@ -322,11 +452,35 @@ Using the project bug structure (`docs/product-decisions.md` §5), containing:
 - **Environment** — label **and** host verbatim
 - **Severity / Priority** — **proposed**; the human has final control
 - **Evidence** — paths to screenshots/logs, credential-free
-- **Related Test Case ID** and **Related User Story**
+- **Related Test Case ID(s)** — every case of this run the defect failed — **Related User Story**,
+  and **Related execution run** (`RUN-<NNN>`). `execution:report` checks the file names the run
+  and each linked Test Case
+- **Observed vs suspected** — the Description and Actual Result state only what was confirmed;
+  any root-cause hypothesis is a separate, clearly labelled *Suspected root cause (unconfirmed)*
 - **Failure classification** and why the alternatives were ruled out
 - **Status** — `Draft`. **The agent may never write `Approved`** (§6.1, invariant 1)
 
-Then **show the human the complete Bug Candidate and STOP.**
+**Then continue with the next case.** When the run ends, every Bug Candidate it raised is listed
+in the report and in your final message, for human review.
+
+### Recording a human review (after the run)
+
+When the human states in the session that a Bug Candidate **is** or **is not** a bug
+(`docs/product-decisions.md` §10.6) — never on your own judgement (invariant 1):
+
+1. Record the decision where the story's human decisions live (`decisions.md`), quoting the human.
+2. In the run's `execution-results.json`, set that candidate's `status` (`Confirmed` / `Not a Bug`)
+   and `resolution` — `disposition` (`CONFIRMED_BUG` / `NOT_A_BUG`), `decidedBy`, `decidedAt`,
+   `decisionRef`, `rationale`. **Change nothing in `results`**: the case keeps its FAIL and its
+   classification, and the totals stay as executed.
+3. In the Bug Candidate file, update the Status row and add a *Resolution* section **above** the
+   original content; delete nothing.
+4. If the Test Case asserted the wrong behaviour, correct it in the CSV citing the decision, then
+   `npm run testcases:render` and `npm run testcases:check` — and never call the old FAIL a PASS:
+   the corrected expectation is proven only by a new run.
+5. Re-render the report: `npm run execution:report -- <ID> --project <KEY> --run RUN-<NNN>`.
+
+A candidate resolved as `Not a Bug` is **never** handed to `/publish-bug`.
 
 **Never create or publish an Azure DevOps Bug automatically.** Only after an **explicit human
 approval in the current session** may a bug be created, and that is a separate write workflow
@@ -350,16 +504,45 @@ assignee are decided by the human at publish time, per Bug** — this skill may 
 severity in the Bug Candidate, but it never chooses an assignee and never carries either value
 over from a previous Bug.
 
-## Step 11 — Report
+## Step 11 — Generate the MANUAL HTML report (mandatory)
 
-1. **Summary counts** — PASS / FAIL / BLOCKED / SKIPPED, out of how many in scope.
+**Every run ends with its report** — a completed run, and equally a run that stopped on a
+legitimate condition (*Step 6a*: results so far kept, the rest `SKIPPED` with `notReached`). After
+`execution-results.md`, `execution-results.json` and any Bug Candidate files are written:
+
+```bash
+npm run execution:report -- <ID> --project <KEY> --run RUN-<NNN>
+```
+
+It validates the record and writes **`manual-report.html`** — and nothing else — into the same run
+directory: execution type **MANUAL**, story, project, environment label and host, run ID, start
+time and duration, PASS / FAIL / BLOCKED / SKIPPED totals and verdict, each Test Case expandable
+with its step-level Expected vs Actual, classification and evidence, and the Bug Candidates. It
+looks like the automation report (shared presentation) but is a different file:
+
+| | Manual (this skill) | Automation (`/automate-test-cases`) |
+|---|---|---|
+| File | `manual-report.html` | `automation-report.html` |
+| Run directory | `docs/projects/<KEY>/executions/US-<ID>/RUN-<NNN>/` | `.artifacts/reports/<KEY>/RUN-<NNN>/` |
+| Execution type shown | MANUAL (Playwright MCP) | AUTOMATED (Playwright) |
+
+- **The command fails → the run is not finished.** Fix the *record* (never invent a value to
+  satisfy it) and run it again. It never touches the CSV, another run, the application or Azure
+  DevOps, and it is safe to re-run for the same run.
+- **Never** hand-write or edit `manual-report.html`, and never write `automation-report.html`.
+
+## Step 12 — Report
+
+1. **Summary counts** — PASS / FAIL / BLOCKED / SKIPPED, out of how many in scope — and how the run
+   ended: **completed**, or **stopped** on which condition, after which case, with how many not reached.
 2. **Per case** — status, and for anything not PASS, the classification and reason.
 3. **Bug Candidates raised**, each awaiting human review — or explicitly *none*.
 4. **Observations** worth a human's attention, marked unverified.
-5. **Where the artifact and evidence live**, and that evidence is gitignored.
+5. **Where the artifact and evidence live** — the run directory, `manual-report.html` with its
+   `file://` link — and that evidence is gitignored.
 6. Confirmation that **no Azure DevOps write occurred** and **no Test Case was modified**.
 
-## Step 12 — Documentation-impact check
+## Step 13 — Documentation-impact check
 
 **Mandatory, in this same task** (`CLAUDE.md` → *Documentation synchronization*,
 `docs/product-decisions.md` §18).

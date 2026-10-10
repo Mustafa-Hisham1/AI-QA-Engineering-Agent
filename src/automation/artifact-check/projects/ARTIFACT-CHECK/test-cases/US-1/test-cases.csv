@@ -1,0 +1,11 @@
+﻿Test Case ID,User Story ID,Section,Section Note,Summary,Title,Project,Module,Feature/Page,Test Type,Requirement Reference,Decisions Applied,Azure DevOps ID,Review/Lifecycle Status,Need Automation,Precondition,Test Data,Steps,Expected Results,Notes
+TC-1-001,1,,,Submitting the form shows a page that never appears,[ARTIFACT-CHECK][Artifact Check][Login Form] Verify a page that never renders appears after submitting credentials,ARTIFACT-CHECK,Artifact Check,Login Form,Synthetic · Leak check,CHECK-1,—,,Approved,Yes,- The local check page is loaded.,- Account handle: `CHECK_ACCOUNT`,"1. Enter the credentials
+2. Submit and expect a page that never appears","1. The values are accepted
+2. The text ""This text is never rendered"" is visible",
+TC-1-002,1,,,A field that never becomes editable,[ARTIFACT-CHECK][Artifact Check][Login Form] Verify the password can be entered into a field that stays disabled,ARTIFACT-CHECK,Artifact Check,Login Form,Synthetic · Leak check,CHECK-2,—,,Approved,Yes,,,1. Enter the password into a field that never becomes editable,1. The password is entered,
+TC-1-003,1,,,The form container shows text it never has,[ARTIFACT-CHECK][Artifact Check][Login Form] Verify the form container shows text it never renders,ARTIFACT-CHECK,Artifact Check,Login Form,Synthetic · Leak check,CHECK-3,—,,Approved,Yes,,,"1. Enter the credentials
+2. Expect text the form never shows","1. The values are accepted
+2. The form shows ""This text is never rendered""",
+TC-1-004,1,,,The login form is shown (passes on purpose),[ARTIFACT-CHECK][Artifact Check][Login Form] Verify the login form is shown after entering credentials,ARTIFACT-CHECK,Artifact Check,Login Form,Synthetic · Leak check,CHECK-4,—,,Approved,Yes,,,"1. Enter the credentials
+2. Confirm the login form is shown","1. The values are accepted
+2. The ""Artifact check"" heading is visible",

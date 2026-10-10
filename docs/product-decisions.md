@@ -266,7 +266,7 @@ irreversible action actually happens.
 ## 6.1 Review/Lifecycle Status — allowed values
 
 Decided 2026-08-13, when the first test case artifact was implemented
-(`docs/projects/<KEY>/test-cases/US-<id>/test-cases.md`). §3 left the state names undefined
+(`docs/projects/<KEY>/test-cases/US-<id>/test-cases.md`; since §6.4, the CSV beside it). §3 left the state names undefined
 until an artifact format existed; this closes that item.
 
 | Status | Meaning | Who may set it |
@@ -352,7 +352,7 @@ Phase 1 of the automation roadmap. Every generated Test Case carries a
   the self-review record, never into the cell. Only a case with no value gets a
   new recommendation.
 - **Enforced by a check, not by discipline.** `npm run testcases:check`
-  snapshots the artifact before regeneration and afterwards fails on any lost
+  snapshots the CSV (§6.4) before regeneration and afterwards fails on any lost
   Test Case ID, Azure DevOps ID, human-set status or Need Automation value, and
   on any case without a value.
 - **Strict values.** The parser accepts exactly `Yes` or `No`. A case with no
@@ -375,6 +375,92 @@ a script that cannot be reliable.
 *Rejected:* a separate provenance marker (AI vs human) on the value. It would
 depend on the human remembering to flip it on every edit. Preserving every
 recorded value needs no marker and cannot be forgotten.
+
+## 6.4 Test cases live in CSV — the single source of truth (human decision, 2026-10-10)
+
+Every User Story's test cases are maintained in **two** files in its project's
+`test-cases/US-<id>/` directory, for every project and every future story:
+
+| File | Role |
+|---|---|
+| `test-cases.csv` | **The single source of truth for test-case content.** One row per case. The human reviews and edits it directly. |
+| `test-cases.md` | A **rendering** of the CSV, plus narrative the CSV does not hold (provenance header and content fingerprint, prerequisites, coverage map, exclusions, self-review). Only the block between `<!-- BEGIN GENERATED TEST CASES … -->` and `<!-- END GENERATED TEST CASES -->` is generated; the narrative around it is kept verbatim. |
+
+**Rules**
+
+- **Every consumer reads the CSV** — publishing, execution, automation scope,
+  automation reporting, checks — through one module, `src/testcases/store.ts`.
+  The Markdown is never read for case content. **If the two disagree, the CSV
+  wins**: the Markdown is re-rendered (`npm run testcases:render`), never the CSV
+  edited to match it.
+- **Rendering never writes the CSV**, so it cannot undo a human edit. The only
+  change code ever makes to the CSV is the publisher's write-back of an Azure
+  DevOps ID and the `Published` status — those two cells of that row, nothing
+  else.
+- **Human edits are never silently restored.** `/write-test-cases` revises only
+  the rows a requirement change affects; `testcases:check` lists every case whose
+  content changed since the snapshot, so a revision that undid a human edit is
+  visible.
+- **Automation scope comes from the latest CSV** Need Automation and status values
+  (§6.3, §7.1); execution and automation use the latest CSV steps and Expected
+  Results. Agent-driven Skills read cases with `npm run testcases:show`, which
+  parses the CSV strictly, never by reading either file by eye.
+- **Approval and publication gates are unchanged** (§6, §6.1, §6.2): only
+  `Approved` cases publish; explicit approval immediately before the write;
+  duplicates refused by local ID and by title against Azure DevOps; no retries.
+  Because the CSV is editable, that approval covers **the content the dry run
+  shows**, which is read from the current CSV. There is no per-case content hash
+  binding an approval to the exact content approved — see *Rejected* below.
+
+**Schema** (`src/testcases/csv-artifact.ts`) — fixed header, matched exactly:
+
+```
+Test Case ID, User Story ID, Section, Section Note, Summary, Title, Project, Module,
+Feature/Page, Test Type, Requirement Reference, Decisions Applied, Azure DevOps ID,
+Review/Lifecycle Status, Need Automation, Precondition, Test Data, Steps,
+Expected Results, Notes
+```
+
+Every field of §3 is a column. `Section`, `Section Note` and `Summary` carry what
+the Markdown layout held and the model previously dropped — the `##` group, its
+introductory text, and the scenario line of each case heading — so a migration
+loses nothing. Multiline values are RFC 4180 quoted fields: Precondition, Test
+Data, Notes and Section Note hold one Markdown line per line, verbatim; Steps and
+Expected Results hold `<n>. <text>` lines with the **same numbers**, and an
+unnumbered line continues the step above it. Azure DevOps ID is empty until
+published; an empty Need Automation is *undecided*. Validation is shared with the
+Markdown reader, so a case cannot be valid in one file and not the other.
+
+**CSV handling.** A dependency-free RFC 4180 reader and writer
+(`src/testcases/csv.ts`): quoted fields with commas, doubled quotes and line
+breaks; CRLF or LF; a UTF-8 BOM written so spreadsheet tools read accented letters
+and dashes correctly. Ambiguous input — an unterminated quote, a quote inside an
+unquoted field, a row with the wrong field count — is **refused with its line**,
+never guessed, because a guessed boundary shifts a value into the wrong column.
+
+**Migration.** `npm run testcases:migrate` converts a legacy Markdown-only story
+once. It refuses when a CSV exists (it may hold human edits), and writes nothing
+unless every case round-trips exactly through the CSV and back through the
+re-rendered Markdown. All existing NBO stories (53717, 52860, 52857) and the
+synthetic ARTIFACT-CHECK story were migrated on 2026-10-10; a strict text diff of
+each Markdown before and after shows only the two markers and the standard wording
+of the empty *Rejected test cases* section.
+
+**Found by the migration** — the legacy Markdown reader stripped `**` from both
+ends of every metadata value, so a partially bold value such as `**D-04**, D-01`
+was read as `D-04**, D-01`. Fixed: only a value wrapped whole loses its markers.
+Test Cases already published from US 53717 and US 52860 were built by the old
+reader, so their Azure DevOps descriptions may carry the mangled text. Azure
+DevOps is the record for them (§13); correcting them is a human decision.
+
+*Rejected:* **the Markdown as the editable source with a CSV export.** Two editable
+copies drift, and the Markdown table syntax is a poor editing surface for
+multiline steps. *Rejected:* **regenerating the whole CSV on every
+`/write-test-cases` run.** It would silently undo human edits. *Deferred, not
+built:* **an approval content hash** — recording a hash of each case's content
+when it is approved, and refusing to publish a case whose content changed since.
+It would close the window between approval and an edit; it needs a human decision
+on where the approval record lives.
 
 ## 7. Execution
 
@@ -432,7 +518,7 @@ per-project config, and `/automate-test-cases` may not create one.
 `Approved` or `Published` (§6.1).** `No` is excluded; a missing value is
 *undecided* and excluded, never read as `Yes`; an unapproved `Yes` case is
 refused. Nothing is dropped silently — every exclusion is reported with its
-reason. The skill never edits `test-cases.md`, so it cannot change a Need
+reason. The skill never edits `test-cases.csv` or `test-cases.md`, so it cannot change a Need
 Automation value or a status.
 
 **Approval gate** — the existing one, not a new one: the skill writes an
@@ -461,7 +547,90 @@ Discovery (`--list`) needs no environment.
 
 **Authentication** is a fresh UI login per test through the project's login
 Page Object. **No `storageState` is saved**: a saved session is a credential on
-disk (invariant 7).
+disk (invariant 7). A case that acts as several roles switches inside its one
+page — the login Page Object clears cookies and web storage and signs in again —
+so a single video covers every role.
+
+**Test timeout** is 180 s (`playwright.config.ts`, 2026-10-10). One Test Case is
+one test, and a case may sign in as three roles and create its own records first;
+the 30 s default cut such cases off midway.
+
+### 7.1.3 Every session a test opens is logged out (human requirement, 2026-10-10)
+
+**Found the hard way.** The first full US-52857 run abandoned every session it
+opened: the role switch only cleared cookies and storage, and nothing ran at test
+end. The application keeps sessions **server-side, in Redis**; NBO STG caps an
+account at 15, and from the tenth case on every `ADMIN_ALL` login timed out. The
+human cleared the sessions and required:
+
+- every test that logs in **ends each session it opened when it finishes, passed
+  or failed**, and a test using several accounts ends each one **before
+  switching**;
+- sessions are ended through the **application's logout API** with the token of
+  the session being closed and **`allSessions: false`** — never another endpoint,
+  never all of an account's sessions, never by clearing Redis;
+- cleanup never hides the original failure or its evidence, never touches another
+  test's session, never logs a token, and deletes no test data.
+
+**Mechanism.**
+
+- `src/automation/sessions.ts` (shared, project-agnostic) — a registry of open
+  sessions keyed by the test's own `page`. `endOpenSessionsNow()` ends them
+  mid-test (account switch) and `endSessions()` at teardown; every outcome is
+  kept, a failure is **returned, never thrown**. `registerSessionSecret()`
+  registers a token for redaction.
+- `endSessions` — an **auto fixture** in `src/automation/fixtures.ts`: teardown
+  after `use()`, own 60 s timeout. Playwright captures the failure screenshot
+  before any fixture teardown (verified in the 1.64 worker), and teardown gets a
+  fresh time slot even after a test timeout. Each outcome becomes a
+  `session-cleanup` annotation and a console line — handle and status codes only.
+- **The project's login Page Object** watches the application's own backend
+  requests from the moment it submits a login and keeps the **latest bearer
+  token and its backend origin** for that session (in memory, registered for
+  redaction). It registers the session right after submitting, and ends the
+  previous session before another login on the same page. NBO:
+  `automation/NBO/Authentication/support/session-api.ts` —
+  `POST <origin>/api/v1/Auth/logout?api-version=1` with `accept`, `Language: En`,
+  `Content-Type`, `Authorization: Bearer <that session's token>` and
+  `{ "allSessions": false }`. The backend origin is the one that received the
+  token, so nothing is configured and nothing is inferred from a hostname.
+- **Proof, every time.** After a 2xx logout, cleanup repeats one of the
+  application's own read-only `GET`s with the old token. **401 → ended.** If the
+  old token still works, the logout is reported as failed.
+
+**Verified on STG (2026-10-10, RUN-014/015):** every session in 9 cases —
+passing, failing, two- and three-account — answered `logout API HTTP 200; old
+token now rejected (HTTP 401)`, and the next login of the same account
+succeeded. No token appeared in the console, the report or Playwright output.
+`tests/automation-sessions.test.ts` (14 tests) covers the request contract,
+token-per-session, pass, failure, switch, isolation, refused logout and a token
+still valid afterwards.
+
+### 7.1.2 Module hierarchy and shared support code (human decision, 2026-10-10)
+
+**Sub-modules.** A project's Module hierarchy can be deeper than the Test Case's
+Module field: for NBO, *Operating Country is a module under Company*, while the
+US-52857 cases carry Module `Company`. The CSV is never changed for this (§6.4).
+Instead the project profile declares the hierarchy in a table headed
+`| Module | Sub-Module | Feature/Page Contains |`; a case whose Module matches and
+whose Feature/Page contains the phrase (case-insensitive; the longest phrase
+wins) is planned and coded under `<Module>/<Sub-Module>/`:
+
+```
+docs/projects/<KEY>/automation/<Module>/<Sub-Module>/automation-plan.md
+automation/<KEY>/<Module>/<Sub-Module>/{pages,tests,support}/
+```
+
+`selectAutomationScope` takes the table as an input (`readProfileSubModules`);
+`automation:scope` and the report's NOT AUTOMATED lookup both use it. The
+declaration is structure only — it relocates code and plans, and can never widen
+scope or relax a rule. Without the table, paths are `<Module>/` as before.
+
+**`support/`** beside `pages/` and `tests/` holds a Module's shared run-time data
+and setup flows — e.g. generated unique names and "create a record as Maker" —
+used by many specs. Like a Page Object it holds **no assertion and no
+credential**; every Expected Result is asserted in the spec. The code-safety scan
+covers it like every file under `automation/`.
 
 ### 7.1.1 Artifact safety — verified, not assumed (2026-10-09, Playwright 1.64)
 
@@ -503,7 +672,8 @@ stay as the debugging output.
 
 ```
 .artifacts/reports/<KEY>/RUN-<NNN>/
-  execution-report.html        standalone page: no script, no external resource
+  automation-report.html       standalone page: no script, no external resource
+                               (named execution-report.html before 2026-10-10, §10.4)
   execution-results.json       the same report, machine-readable
   bug-candidates/BUG-NNN.md    local Bug Candidates, Draft
   attachments/                 copied failure screenshots
@@ -515,15 +685,39 @@ duration, a PASS/FAIL verdict and bar, and a list of failed cases with their
 failed step and reason); Test Case Results (one expandable row per case with
 Test Case ID, User Story, ADO ID, title, status, duration, the Playwright spec,
 and a step table of Step / Expected Result / Actual Result / status — failed
-cases open by default on a *Why it failed* panel); and **Bug Reports**.
+cases open by default on a *Why it failed* panel); and the **Bug Report** section (§10.6).
 
 **Sources — nothing invented.** IDs come from the spec's `testCaseDetails`
 annotations; step actions, Expected Results, title and module from the Test
 Case artifact; status, durations, errors and screenshots from Playwright. A
 spec with no annotation is shown as *not traceable*, never given an ID.
 
+**Recorded observations** (2026-10-10, approved with the US-52857 Automation
+Plan). Many Expected Results say *"record its exact text"* or are
+observation-only. A spec records such a value with an annotation of type
+`observation` and description `Step N: <text>`; the report appends it to that
+step's Actual Result as `Recorded: …`. It passes the same sanitizer as every
+Playwright string, never changes a status, and is never an assertion — an
+observation is not promoted into a pass/fail criterion (§10). Duplicates
+(Playwright reports a runtime annotation on both the test and its result) render
+once.
+
+**Module report** (human decision 2026-10-10). Each run is also written to the
+Module directory of the specs it executed —
+`automation/<KEY>/<Module path>/automation-report.html` (NBO:
+`automation/NBO/Company/Operating-Country/automation-report.html`) — the latest
+run of that Module, rewritten by every run that executes its specs. Same results
+and totals as the run's own report; its screenshots and videos are **linked** to
+the run directory's `attachments/` (relative path, validated), never copied into
+the code tree. The run directory stays the append-only history. Gitignored like
+all evidence.
+
 **Statuses.** `PASS` passed; `FAIL` failed or timed out; `NOT RUN` skipped —
-e.g. `TEST_DATA_UNAVAILABLE`, never a FAIL; `NOT AUTOMATED` an in-scope case
+e.g. `TEST_DATA_UNAVAILABLE`, never a FAIL — **or never really run**: a test
+Playwright reports as `interrupted`, or as failed with "worker process exited
+unexpectedly" before any step started (a stopped or crashed run), is `NOT RUN`
+with the reason, never a FAIL and never a Bug Candidate (2026-10-10; RUN-008 had
+counted 23 such cases as FAIL); `NOT AUTOMATED` an in-scope case
 (Need Automation = Yes AND Approved/Published) of an executed story that has no
 spec, with the reason from its Module's Automation Plan. A case whose spec
 exists but was filtered out of the run is omitted, not counted.
@@ -540,7 +734,7 @@ complete -> `TEST_SCRIPT_ISSUE`; otherwise `UNKNOWN`.
 written locally as a **Draft** — title, description, preconditions, steps to
 reproduce (up to the failed step), test data by handle, expected and actual
 result, requirement, related Test Case (internal and ADO ID), related User
-Story, classification, environment, screenshots — and shown in Bug Reports.
+Story, classification, environment, screenshots — and shown in the Bug Report section (§10.6).
 **Nothing is created in Azure DevOps.** Severity and Priority are not proposed.
 Publishing remains the separate, human-approved `/publish-bug` flow (§5),
 given the candidate's file path.
@@ -652,6 +846,14 @@ Learned by executing a real login case, not by design review.
   password the UI masks on screen.** Snapshots remain the right tool for reading
   UI state and targeting elements in-session; they are simply never written to
   disk as evidence.
+- **The MCP server writes snapshots to disk on its own** (found 2026-10-09, US
+  52857 analysis). With `--output-dir .artifacts/playwright` (`.mcp.json`), every
+  navigate, click, wait and snapshot call saves `page-<timestamp>.yml`, and
+  console output goes to `console-<timestamp>.log` — without being asked. After a
+  login, three of those files held the typed password in plain text. The
+  directory is gitignored, but gitignored is not "not persisted": **every
+  MCP-driven session deletes the files it created there once the browser is
+  closed, and confirms no credential value remains.**
 - **Rendered screenshots are the evidence format**, and only when they expose no
   secret. Where a credential was entered or revealed, the masking is confirmed
   before the image is kept; an image showing a credential is **discarded** and
@@ -697,6 +899,158 @@ rather than a bug-finding tool — built by the `automate-test-cases` skill.
 The skill is granted browser tools **except** `browser_run_code_unsafe` and
 `browser_evaluate`. Arbitrary JavaScript in the page would let execution bypass
 every rule the skill enforces, including the credential and PROD restrictions.
+
+### 10.4 Every manual run ends with `manual-report.html` (human decision, 2026-10-10)
+
+Every `/execute-test-cases` run — completed, or stopped at a `PRODUCT_BUG` for
+review — ends with a standalone HTML report in its own run directory:
+
+```
+docs/projects/<KEY>/executions/US-<id>/RUN-<NNN>/
+  execution-results.md     human-readable record (as before)
+  execution-results.json   structured record — the report's only input
+  manual-report.html       the MANUAL report
+  evidence/                screenshots (gitignored)
+  bug-candidates/          local Bug Candidates, Draft
+```
+
+- **Generated by code, not hand-written:** `npm run execution:report -- <ID>
+  --project <KEY> --run RUN-<NNN>` (`src/execution/`). The Skill writes the
+  structured record; the command validates it strictly and renders the report.
+  A malformed record — an unknown status, a FAIL without a failed step or a
+  classification, a non-PASS without a reason, an evidence or Bug Candidate file
+  that does not exist, a PROD label, a source other than `test-cases.csv` —
+  produces no report.
+- **Nothing invented.** The report shows only what the run recorded. **Totals
+  are never stored**: they are derived from the case results, so the summary
+  cannot disagree with them. The record copies each step's Expected Result from
+  the CSV as executed, with the CSV's sha256; the report says when the CSV has
+  changed since.
+- **Handles, never values.** The command refuses a record containing the value of
+  any configured handle or credential, and never prints the value.
+- **Same look as the automation report, separate data.** Presentation — the
+  stylesheet, summary cards, badges, expandable Test Case sections, the step
+  table, the evidence gallery — is shared (`src/reporting/html.ts`). Data models,
+  generators and writers stay separate; the manual report depends on no
+  automation run.
+
+**Manual and automation reports never collide.** The automation report was
+renamed `execution-report.html` → **`automation-report.html`** (§7.2); its path,
+generation and content are otherwise unchanged, apart from now stating its
+execution type. Isolation is structural (`src/reporting/report-files.ts`):
+
+| | Manual | Automation |
+|---|---|---|
+| File | `manual-report.html` | `automation-report.html` |
+| Run root | `docs/projects/<KEY>/executions/US-<id>/` | `.artifacts/reports/<KEY>/` |
+| Execution type shown | **MANUAL** (Playwright MCP) | **AUTOMATED** (Playwright) |
+
+Each writer writes only its own filename, and **refuses a run directory that
+already holds the other report** — so neither can overwrite, rename or delete the
+other, even if a path were mis-configured. Runs remain append-only (§10.2);
+re-rendering a run's own report is allowed and touches nothing else.
+
+*Rejected:* one report file with an execution-type switch — a manual and an
+automated run of the same story would compete for one name. *Rejected:* parsing
+`execution-results.md` to build the report — free-form Markdown cannot be
+validated, and a mis-parsed table would show results nobody recorded.
+
+### 10.5 A product bug never stops a manual run (human decision, 2026-10-10)
+
+Supersedes the earlier rule that `/execute-test-cases` stopped at the first
+`PRODUCT_BUG` until a human had reviewed it.
+
+**Execute every eligible case unless a legitimate stop condition occurs.** A case
+that fails on a suspected product bug is recorded as FAIL, gets a local Bug
+Candidate, and **the next case runs**. Test Cases are independently executable
+(§4), so one case's defect is never a reason to leave another unrun — and a case
+is never SKIPPED because of a bug found elsewhere. `TEST_DATA_ISSUE`,
+`TEST_SCRIPT_ISSUE` and `UNKNOWN` likewise affect only their own case.
+
+**The run stops only when continuing is unsafe or technically impossible:**
+
+| Condition | When |
+|---|---|
+| `ENVIRONMENT_UNAVAILABLE` | Reachability check failed, or two consecutive cases failed on `ENVIRONMENT_ISSUE` / `NETWORK_ISSUE` |
+| `AUTHENTICATION_BROKEN` | The login itself is broken for the remaining cases, or two consecutive cases failed on `AUTHENTICATION_ISSUE` |
+| `BLOCKING_ISSUE` | An issue makes every later result unreliable |
+| `DESTRUCTIVE_RISK` | Continuing could make unintended destructive changes or corrupt test data |
+
+A stopped run keeps every result collected so far, records each remaining case as
+SKIPPED with `notReached`, and still writes `execution-results.md`,
+`execution-results.json` and `manual-report.html` (§10.4). The verdict of a run
+that left cases unreached is INCOMPLETE unless something FAILED.
+
+**Bug Candidates.** Every `PRODUCT_BUG` failure has one; each names its execution
+run and Test Case(s). **One underlying defect is one Bug Candidate**, linked to
+every case it failed — raised twice only when the evidence does not clearly show
+the same defect. They stay local Drafts: nothing is created in Azure DevOps, and
+publishing is still `/publish-bug` under its own approval gate (§5, invariant 2).
+
+**Confirmed vs suspected.** A record states what was observed (`reason`, a Bug
+Candidate's `summary`) apart from any hypothesis about why (`suspectedCause`,
+`suspectedRootCause`); the report labels them *Observed (confirmed)* and *Suspected
+… (unconfirmed)*.
+
+**Enforced by code, not by discipline.** The policy is `src/execution/run-policy.ts`
+(the same thresholds the Skill states), and `npm run execution:report` refuses a
+record that stopped for a product bug, skipped a case because of a bug, stopped on
+a condition its recorded results do not support, executed a case after stopping,
+left a `PRODUCT_BUG` failure without a Bug Candidate, or raised one defect twice.
+
+*Reasoning:* stopping at the first bug made one defect cost the rest of the run —
+and the human's review of that one Bug Candidate gated every unrelated result.
+Reviewing all Bug Candidates once, with the full run in front of them, is both
+faster and better informed. The remaining stops are the ones where continuing
+would produce wrong results or do harm.
+
+### 10.6 Bug Candidate dispositions and the Bug Report section (human decision, 2026-10-10)
+
+Prompted by the review of US-52857 RUN-001, where the human resolved both Bug Candidates as
+**not a bug** (NBO decisions D-18, D-19).
+
+**A Bug Candidate has a status:** `Draft` (as the run writes it) → `Confirmed` or `Not a Bug`.
+Only a **human** moves it off `Draft` (invariant 1), and the move is recorded as a
+**resolution** beside the candidate — disposition (`CONFIRMED_BUG` / `NOT_A_BUG`), who decided,
+when, the decision reference, and the rationale. Status and disposition must agree;
+`execution:report` refuses a non-Draft without a resolution, a Draft with one, or a mismatch.
+
+**Resolving never rewrites history.**
+- The run's results are not touched: a case that failed stays `FAIL` with the classification it
+  was given, and the Execution Summary keeps its counts. A resolution is never a re-grade — a
+  corrected expectation is proven only by a **new** run.
+- The Bug Candidate file keeps its original content and evidence under a *Resolution* section;
+  nothing is deleted.
+- A candidate resolved as not a bug is **never** passed to `/publish-bug`.
+- When the resolution means the Test Case was wrong, the case is corrected in the CSV (citing the
+  decision) and `test-cases.md` re-rendered; the run's report then flags the CSV as changed since
+  the run, while its step tables still show the cases as executed.
+
+**Both reports carry a "Bug Report" section** — `manual-report.html` and `automation-report.html`
+alike — rendered by one shared component (`src/reporting/bug-report.ts`) from the Bug Candidates
+**of that run only**: each report maps its own run's data; the component knows no project, story
+or run. Per candidate it shows the fields of the Bug Candidate file where recorded — Bug ID, title,
+status/disposition, related Test Case(s), User Story, run, requirement, description,
+preconditions, steps to reproduce, test data by handle, expected result, actual result (the
+confirmed observation), environment, classification as assigned during the run, suspected cause
+(labelled unconfirmed), notes, the resolution, evidence and the local file. Open and confirmed bugs
+are listed first; candidates resolved as not a bug follow in their own group, visibly marked and
+kept for traceability. A run without candidates shows an explicit empty state. Every value is
+escaped; evidence is referenced only inside the run's own evidence/attachments directory — the
+automation report still links nothing outside `attachments/` (`automation:verify-artifacts`), so it
+names the local Bug Candidate file as text where the manual report links it. The section is
+separate from the Execution Summary.
+
+**Where the data lives.** Manual runs: each `bugCandidates[]` entry of `execution-results.json`
+carries `status`, `resolution` and, optionally, the file's detail (`description`,
+`preconditions`, `stepsToReproduce`, `testData`, `expectedResult`, `actualResult`,
+`requirementReference`, `notes`). Automation runs: the same `status` / `resolution` on the
+stored report's `bugCandidates[]`, re-rendered with `npm run automation:report`.
+
+*Reasoning:* deleting a resolved candidate, or re-grading the run, would erase the record that a
+Test Case once asserted the wrong behaviour — exactly the history that explains why the case
+changed. Showing both groups in one section keeps the review visible without inflating the
+bug count.
 
 ## 11. Reporting and traceability
 

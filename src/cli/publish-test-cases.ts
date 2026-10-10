@@ -1,6 +1,8 @@
 /**
- * Publishes approved Test Cases from a local artifact to Azure DevOps as child
- * work items of their User Story.
+ * Publishes approved Test Cases from the story's `test-cases.csv` — the single
+ * source of truth for test-case content (`docs/product-decisions.md` §6.4) — to
+ * Azure DevOps as child work items of their User Story. What is published is the
+ * CSV as it stands now, human edits included; the Markdown rendering is never read.
  *
  *   node src/cli/publish-test-cases.ts 53717             # DRY RUN — writes nothing
  *   node src/cli/publish-test-cases.ts 53717 --confirm   # performs the writes
@@ -29,7 +31,8 @@ import { loadConfig, loadWriteConfig } from '../ado/config.ts';
 import { isAdoError, redact } from '../ado/errors.ts';
 import { AdoWriteClient } from '../ado/write-client.ts';
 import { ProjectError, describeActiveProject, resolveActiveProject } from '../projects/active-project.ts';
-import { ArtifactError, artifactPathFor, parseArtifact, recordPublishedId } from '../testcases/artifact.ts';
+import { ArtifactError } from '../testcases/artifact.ts';
+import { checkMarkdownSync, csvPathFor, loadTestCases, recordPublishedId } from '../testcases/store.ts';
 import type { TestCaseRecord } from '../testcases/model.ts';
 
 function log(line = ''): void {
@@ -169,10 +172,10 @@ async function main(): Promise<number> {
   // Resolve the active project BEFORE anything is read or written. An ambiguous
   // project stops the run rather than defaulting to one (see active-project.ts).
   const project = resolveActiveProject(args.project);
-  const artifactPath = artifactPathFor(project.root, storyId);
+  const artifactPath = csvPathFor(project.root, storyId);
 
-  // ---- Load the local artifact (no network yet) --------------------------
-  const artifact = parseArtifact(artifactPath, storyId);
+  // ---- Load the local CSV (no network yet) ------------------------------
+  const artifact = loadTestCases(project.root, storyId);
 
   log();
   log('='.repeat(78));
@@ -180,10 +183,15 @@ async function main(): Promise<number> {
   log('='.repeat(78));
   log();
   log(`Project           ${describeActiveProject(project)}`);
-  log(`Artifact          ${artifactPath}`);
+  log(`Test case CSV     ${artifactPath}`);
   log(`Test cases parsed ${artifact.testCases.length}`);
   if (artifact.contentFingerprint) {
     log(`Fingerprint       ${artifact.contentFingerprint}`);
+  }
+  // Informational only: the CSV is what is published. Each write-back re-renders the Markdown.
+  const sync = checkMarkdownSync(project.root, storyId);
+  if (sync.problems.length > 0) {
+    log(`Markdown          out of date with the CSV (${sync.problems.length} difference(s)) — the CSV is used`);
   }
 
   // ---- Read Azure DevOps state (read-only path) -------------------------
@@ -282,7 +290,7 @@ async function main(): Promise<number> {
   // Cases Azure DevOps already has: record the existing ID locally rather than
   // creating a second copy. This is a local-file change, not an ADO write.
   for (const entry of plan.existsRemotely) {
-    recordPublishedId(artifactPath, entry.testCase.localId, entry.child.id);
+    recordPublishedId(project.root, storyId, entry.testCase.localId, entry.child.id);
     log(`  = ${entry.testCase.localId}  reconciled to existing work item ${entry.child.id}`);
   }
 
@@ -299,7 +307,7 @@ async function main(): Promise<number> {
 
       // Record immediately, before the next create. An interruption here must
       // never leave a created item unrecorded.
-      recordPublishedId(artifactPath, result.localId, result.adoId);
+      recordPublishedId(project.root, storyId, result.localId, result.adoId);
 
       created.push({ localId: result.localId, adoId: result.adoId });
       log(`  + ${testCase.localId}  ->  work item ${result.adoId}`);
@@ -332,7 +340,7 @@ async function main(): Promise<number> {
   // ---- Verify against Azure DevOps -------------------------------------
   log();
   log('Verifying against Azure DevOps...');
-  const finalArtifact = parseArtifact(artifactPath, storyId);
+  const finalArtifact = loadTestCases(project.root, storyId);
   const finalChildren = await readClient.getChildWorkItems(storyId);
   const verified = reportVerification(finalArtifact.testCases, finalChildren, parent);
 

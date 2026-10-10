@@ -51,6 +51,9 @@ export default defineConfig({
   // to see the first failure (§9).
   retries: 0,
   forbidOnly: true,
+  // One Test Case is one test, and a case may sign in as up to three roles and
+  // create its own records first; the 30 s default cuts such a case off midway.
+  timeout: 180_000,
 
   use: { ...ARTIFACT_POLICY, baseURL: baseUrl() },
 

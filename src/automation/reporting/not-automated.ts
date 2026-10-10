@@ -10,7 +10,7 @@
 
 import type { ActiveProject } from '../../projects/active-project.ts';
 import type { TestCaseArtifact } from '../../testcases/model.ts';
-import { selectAutomationScope } from '../scope.ts';
+import { selectAutomationScope, type SubModule } from '../scope.ts';
 import type { NotAutomatedCase } from './build.ts';
 
 export interface PlanRow {
@@ -53,12 +53,13 @@ export function findNotAutomated(
   executedIds: ReadonlySet<string>,
   fileExists: (path: string) => boolean,
   readText: (path: string) => string | null,
+  subModules: readonly SubModule[] = [],
 ): NotAutomatedCase[] {
   const found: NotAutomatedCase[] = [];
   const plans = new Map<string, Map<string, PlanRow>>();
 
   for (const artifact of artifacts) {
-    for (const scoped of selectAutomationScope(project, artifact).inScope) {
+    for (const scoped of selectAutomationScope(project, artifact, subModules).inScope) {
       if (executedIds.has(scoped.testCase.localId) || fileExists(scoped.specPath)) continue;
 
       if (!plans.has(scoped.planPath)) {

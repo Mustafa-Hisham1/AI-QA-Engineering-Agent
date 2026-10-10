@@ -12,6 +12,10 @@
  *   account(H)  credentials for account handle H, in memory only.
  *   dataValue(H) the value of single-value handle H, in memory only.
  *
+ *   endSessions (auto) logs out every application session the test opened —
+ *               after a pass or a failure, after the failure screenshot is
+ *               taken, never replacing the test's own result (sessions.ts).
+ *
  * A handle whose variables are unset SKIPS the test as
  * `NOT RUN — TEST_DATA_UNAVAILABLE: <HANDLE>` — missing test data is never a
  * failure (§8, §9).
@@ -28,7 +32,8 @@ import {
   type AccountCredentials,
   type AutomationEnvironment,
 } from './config.ts';
-import { sanitizeError, type SanitizableError } from './sanitizer.ts';
+import { sanitizeError, sanitizeText, type SanitizableError } from './sanitizer.ts';
+import { endSessions } from './sessions.ts';
 
 export { expect } from '@playwright/test';
 export { testCaseDetails } from './traceability.ts';
@@ -38,6 +43,7 @@ interface AutomationFixtures {
   account: (handle: string) => AccountCredentials;
   dataValue: (handle: string) => string;
   redactErrorContext: void;
+  endSessions: void;
 }
 
 /** The active project, as pinned by `playwright.config.ts` in the project metadata. */
@@ -75,6 +81,27 @@ export const test = base.extend<AutomationFixtures>({
       for (const error of testInfo.errors) sanitizeError(error as SanitizableError);
     },
     { auto: true },
+  ],
+
+  // Every session the test opened on its page is ended in teardown, passed or
+  // failed, through the application's own session termination (§7.1.3).
+  // Playwright captures the failure screenshot before any fixture is torn down,
+  // so cleanup cannot disturb the evidence; teardown runs in its own time slot,
+  // so it still happens after a test timed out. A failed logout is reported,
+  // never thrown — it must not mask the test's result.
+  endSessions: [
+    async ({ page }, use, testInfo) => {
+      await use();
+      const caseId = testInfo.title.split(' ')[0];
+      for (const result of await endSessions(page)) {
+        const what = { 'logged-out': 'logged out', 'nothing-to-end': 'nothing to log out', failed: 'LOGOUT FAILED' }[result.outcome];
+        const description = sanitizeText(`${result.label} (${result.when}): ${what} — ${result.detail}`);
+        testInfo.annotations.push({ type: 'session-cleanup', description });
+        // Handle labels and status codes only — never a username or a token.
+        (result.outcome === 'failed' ? console.warn : console.log)(`[session-cleanup] ${caseId}: ${description}`);
+      }
+    },
+    { auto: true, timeout: 60_000 },
   ],
 
   // Playwright requires the object-destructuring pattern for the first argument.

@@ -1,5 +1,9 @@
 /**
- * Golden-file tests for the Test Case artifact parser.
+ * Golden-file tests for the Test Case MARKDOWN reader and the validation it
+ * shares with the CSV. Since the CSV became the source of truth (§6.4) the
+ * Markdown reader serves migration, the CSV/Markdown sync check and the
+ * provenance fingerprint; the publisher write-back is tested on the CSV in
+ * test-case-store.test.ts.
  *
  * These lock in CURRENT behaviour so the project-context refactor cannot change
  * it by accident. The parser is the piece a path or key change touches first,
@@ -15,7 +19,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { ArtifactError, artifactPathFor, parseArtifact, recordPublishedId } from '../src/testcases/artifact.ts';
+import { ArtifactError, artifactPathFor, parseArtifact } from '../src/testcases/artifact.ts';
 
 const FIXTURE = fileURLToPath(new URL('./fixtures/valid-artifact.md', import.meta.url));
 
@@ -183,7 +187,7 @@ test('parseArtifact rejects an unreadable Azure DevOps ID instead of assuming un
     () => parseArtifact(path, 99001),
     (error: unknown) => {
       ok(error instanceof ArtifactError);
-      ok(error.message.includes('could not read the Azure DevOps ID cell'));
+      ok(error.message.includes('could not read the Azure DevOps ID'));
       return true;
     },
   );
@@ -253,29 +257,27 @@ test('parseArtifact rejects a step with no expected result', () => {
   );
 });
 
-test('recordPublishedId writes the ID back and sets the status to Published', () => {
-  const path = scratchFile(readFileSync(FIXTURE, 'utf8'));
-
-  recordPublishedId(path, 'TC-99001-002', 55700);
-
-  const [first, second] = parseArtifact(path, 99001).testCases;
-  strictEqual(second!.adoId, 55700);
-  strictEqual(second!.status, 'Published');
-
-  // The other case must be untouched — a write-back that edits a neighbouring
-  // case would re-point an already-published item at different content.
-  strictEqual(first!.adoId, 55294);
-  strictEqual(first!.status, 'Published');
+test('parseArtifact keeps partially-bold metadata verbatim instead of stripping one end of it', () => {
+  // Regression: the old cleaner stripped "**" from both ends of every value, so
+  // "**D-04**, D-01" became "D-04**, D-01". Only a value wrapped WHOLE loses its markers.
+  const path = fixtureWithReplacement('| Decisions Applied | D-01 |', '| Decisions Applied | **D-04**, D-01 |');
+  const [, second] = parseArtifact(path, 99001).testCases;
+  strictEqual(second!.decisionsApplied, '**D-04**, D-01');
 });
 
-test('recordPublishedId leaves Need Automation untouched', () => {
-  // Publishing changes the status; it must not change the automation decision.
-  const path = scratchFile(readFileSync(FIXTURE, 'utf8'));
+test('parseArtifact reads the case heading summary and the section a case sits under', () => {
+  const [first] = parseArtifact(FIXTURE, 99001).testCases;
+  strictEqual(first!.summary, 'Login form presents the specified fields');
+  strictEqual(first!.section, '');
+});
 
-  recordPublishedId(path, 'TC-99001-002', 55700);
-
-  const [first, second] = parseArtifact(path, 99001).testCases;
-  strictEqual(second!.status, 'Published');
-  strictEqual(second!.needAutomation, 'No');
-  strictEqual(first!.needAutomation, 'Yes');
+test('parseArtifact rejects an ID that belongs to another User Story', () => {
+  throws(
+    () => parseArtifact(FIXTURE, 99002),
+    (error: unknown) => {
+      ok(error instanceof ArtifactError);
+      ok(error.message.includes('belongs to User Story 99001'));
+      return true;
+    },
+  );
 });

@@ -234,7 +234,11 @@ Explore through the **Playwright MCP server**, under the same rules as `/execute
   never judge a page mid-transition.
 - **Persist no snapshot and no screenshot.** The accessibility snapshot shows typed passwords in
   plain text; it is for reading the page in-session only. This skill is not granted the
-  screenshot tool.
+  screenshot tool. **The MCP server nevertheless saves a `page-<timestamp>.yml` snapshot (and a
+  `console-<timestamp>.log`) under `.artifacts/playwright/` after almost every action** — after a
+  login those files hold the typed password. When exploration ends, close the browser, **delete
+  every file this session created in `.artifacts/playwright/`**, and confirm none remains that
+  contains a credential (`docs/product-decisions.md` §10.1).
 - Explore **only what the story touches**: pages and navigation, fields and their visible
   validation, dropdown options, buttons and actions, visible messages, states and error behaviour,
   and which elements look stable enough to automate later (roles, labels, test IDs).

@@ -7,6 +7,8 @@
  * it again on output.
  */
 
+import type { BugCandidateStatus, BugResolution } from '../../reporting/bug-report.ts';
+
 /** Per Test Case, in the report. */
 export type ExecutionStatus = 'PASS' | 'FAIL' | 'NOT RUN' | 'NOT AUTOMATED';
 
@@ -92,8 +94,14 @@ export interface BugCandidate {
   readonly classification: FailureClassification;
   readonly environment: ReportEnvironment;
   readonly attachments: readonly ReportAttachment[];
-  /** Always Draft: only a human reviews it, and only /publish-bug publishes it. */
-  readonly status: 'Draft';
+  /**
+   * Draft when the run writes it. Only a human moves it on — Confirmed or Not a
+   * Bug — by recording a `resolution` in the run's stored results; only
+   * /publish-bug publishes it, and never one resolved as not a bug (§10.6).
+   */
+  readonly status: BugCandidateStatus;
+  /** The human review, after the run. Absent (or null) while Draft. */
+  readonly resolution?: BugResolution | null;
 }
 
 export interface ReportEnvironment {

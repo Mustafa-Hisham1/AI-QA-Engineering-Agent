@@ -244,21 +244,33 @@ story or a decision, every side is recorded and an open question raised.
 `npm run analysis:preflight` reports whether the story or the API specification
 changed since the last analysis.
 
-### `test-cases/US-<id>/test-cases.md`
+### `test-cases/US-<id>/test-cases.csv` and `test-cases.md`
 
-The Test Case set: provenance and fingerprint, test-data handles, coverage map,
-deliberate exclusions, the cases, rejected cases, and the AI self-review record.
-Regenerable — but Test Case IDs, human-set statuses, published Azure DevOps IDs and
-Need Automation values survive regeneration. Test Case IDs are `TC-<storyId>-NNN`
-and are never reused.
+**`test-cases.csv` is the single source of truth for test-case content**
+(`docs/product-decisions.md` §6.4): one row per case, with every field — ID, story,
+section, title, Project / Module / Feature-Page, test type, references, decisions,
+Azure DevOps ID, status, Need Automation, precondition, test data, steps, expected
+results, notes. **Review and edit the CSV directly** (any spreadsheet tool; close it
+before publishing). Steps and Expected Results are numbered lines (`1. …`, `2. …`)
+with the same numbers.
 
-**Need Automation (automation Phase 1).** Every case's metadata table carries a
-`| Need Automation | Yes |` (or `No`) row:
+`test-cases.md` is a **rendering** of the CSV for reading, plus narrative the CSV
+does not hold: provenance and fingerprint, test-data handles, coverage map,
+deliberate exclusions and the AI self-review record. After editing the CSV, run
+`npm run testcases:render -- <ID> --project <KEY>`. If the two files disagree, the
+CSV wins — every workflow (publishing, execution, automation) reads the CSV.
+
+Test Case IDs, human-set statuses, published Azure DevOps IDs, Need Automation
+values and human edits survive every revision. Test Case IDs are
+`TC-<storyId>-NNN` and are never reused.
+
+**Need Automation (automation Phase 1).** Every case carries a Need Automation
+value (`Yes` or `No`; the CSV column, rendered as a `| Need Automation | Yes |` row):
 
 - `/write-test-cases` writes it as an **AI recommendation**, weighing feasibility,
   reliability/determinism, regression value and maintainability. The reason for
   each case is in the AI self-review record.
-- **The human may change any value** in this file. The value after human review
+- **The human may change any value** in the CSV. The value after human review
   is the source of truth for future automation scope: `Yes` is in, `No` is out.
 - It is **independent of Review/Lifecycle Status**. `Yes` is not approval, and
   approving a case does not make it `Yes`.
@@ -276,7 +288,7 @@ Nothing is automated yet; this phase only records the decision. Full rules:
 ```
 execution-results.md   Per-case status, step-level Expected vs Actual, failure
                        classification, environment label AND target host verbatim.
-                       Never modifies test-cases.md.
+                       Never modifies test-cases.csv or test-cases.md.
 evidence/              Screenshots. GITIGNORED — local only.
 bug-candidates/        Local Bug Candidates awaiting human review. NEVER auto-published.
 ```
@@ -378,8 +390,8 @@ With both projects present, artifact paths never collide — the same story numb
 two projects resolves to two different files:
 
 ```
-NBO       -> docs/projects/NBO/test-cases/US-53717/test-cases.md
-NDC-CORE  -> docs/projects/NDC-CORE/test-cases/US-53717/test-cases.md
+NBO       -> docs/projects/NBO/test-cases/US-53717/test-cases.csv
+NDC-CORE  -> docs/projects/NDC-CORE/test-cases/US-53717/test-cases.csv
 ```
 
 ---
@@ -603,7 +615,7 @@ A profile **cannot** enable, relax, waive, or reconfigure any of these:
 | **Credential and secret rules** | Secrets never leave `.env`. Only `src/ado/config.ts` (tracker) and `src/automation/config.ts` (application under test) may read a credential from the environment. Every error passes through `redact()`. Profiles name handles and variable names only — never values. |
 | **Evidence security** | Accessibility snapshots are **never** persisted as evidence — the Playwright accessibility tree returns typed passwords in plain text even when the UI masks them. Rendered screenshots only, and only when they expose no secret. `evidence/` is gitignored. |
 | **No retried writes** | Reads are safely retryable; writes are not. Blind-retrying a write is how duplicate Test Cases and Bugs get created. |
-| **Execution never writes to ADO** | No Test Run, no Test Result, no Bug. A `PRODUCT_BUG` becomes a local Bug Candidate that stops for human review. |
+| **Execution never writes to ADO** | No Test Run, no Test Result, no Bug. A `PRODUCT_BUG` becomes a local Bug Candidate for human review, and the run continues — it stops only when continuing is unsafe or impossible (decision §10.5). |
 | **Explicit active project** | Never guess which project a request belongs to when more than one exists. |
 
 ### Project-specific — varies per project, set in the profile
@@ -730,8 +742,11 @@ npm run testcases:publish -- <ID> --project <KEY> --confirm  # writes; needs app
 npm run testcases:publish -- <ID> --project <KEY> --verify   # verify only, writes nothing
 npm run testcases:publish -- <ID> --project <KEY> --confirm --limit 1   # canary
 
-npm run testcases:check -- <ID> --project <KEY> --snapshot   # before regenerating: save the artifact
-npm run testcases:check -- <ID> --project <KEY>              # after: nothing lost, Need Automation on every case
+npm run testcases:check -- <ID> --project <KEY> --snapshot   # before revising: save the CSV
+npm run testcases:check -- <ID> --project <KEY>              # after: CSV valid, Markdown in sync, nothing lost
+npm run testcases:render -- <ID> --project <KEY>             # re-render test-cases.md from the CSV
+npm run testcases:show -- <ID> [TC-ID …] --project <KEY>     # print cases from the CSV
+npm run testcases:migrate -- <ID> --project <KEY>            # once: legacy Markdown-only story -> CSV
 
 npm run bug:publish -- <input.json>                    # DRY RUN + story-scoped duplicate check
 npm run bug:publish -- <input.json> --confirm          # publishes, then verifies
@@ -753,11 +768,14 @@ requires explicit human approval immediately beforehand. `bug:publish` publishes
 Bugs get created. Exit code **3** means `PUBLISH_VERIFICATION_FAILED`: the Bug
 **exists** and must be fixed by hand, never by re-running.
 
-`testcases:check` reads and writes local files only. It exits **1** when a
-regeneration lost a Test Case ID, an Azure DevOps ID, a human-set status or a
-Need Automation value, or when any case has no Need Automation value. A failed
-check keeps the gitignored `test-cases.previous.md` snapshot so the lost values
-can be restored; a clean check removes it.
+`testcases:check` reads and writes local files only and never writes the CSV. It
+exits **1** when `test-cases.md` does not match the CSV, when a revision lost a
+Test Case ID, an Azure DevOps ID, a human-set status or a Need Automation value, or
+when any case has no Need Automation value; it lists every case whose content
+changed since the snapshot. A failed check keeps the gitignored
+`test-cases.previous.csv` snapshot so the lost values can be restored; a clean
+check removes it. `testcases:render` never writes the CSV, and `testcases:migrate`
+refuses when a CSV already exists.
 
 ---
 
@@ -819,7 +837,7 @@ script, no external resource — through a Playwright reporter; specs do nothing
 
 ```
 .artifacts/reports/<KEY>/RUN-<NNN>/          append-only, gitignored
-├── execution-report.html                    open this
+├── automation-report.html                   open this (AUTOMATED)
 ├── execution-results.json                   the same data, machine-readable
 ├── bug-candidates/BUG-NNN.md                local Draft Bug Candidates
 └── attachments/
@@ -827,6 +845,21 @@ script, no external resource — through a Playwright reporter; specs do nothing
     ├── TC-53717-001.webm                    video — every test, any outcome
     └── TC-53717-002.webm
 ```
+
+**Manual runs** (`/execute-test-cases`) write their own report, `manual-report.html`
+(execution type MANUAL), into their own run directory — never next to an automation report:
+
+```
+docs/projects/<KEY>/executions/US-<id>/RUN-<NNN>/
+├── manual-report.html                       open this (MANUAL)
+├── execution-results.json                   structured record, the report's input
+├── execution-results.md                     human-readable record
+├── evidence/                                screenshots, gitignored
+└── bug-candidates/                          local Draft Bug Candidates
+```
+
+`npm run execution:report -- <ID> --project <KEY> [--run RUN-<NNN>]` renders it (product
+decision §10.4); each writer refuses a run directory holding the other report type.
 
 `automation:test` prints its path; `npm run automation:report -- --project <KEY>`
 finds the latest run again (or `--run RUN-<NNN>`), re-renders it from its stored
@@ -843,11 +876,15 @@ results, and prints a `file://` link to open.
   full error. Every case — passed or failed — has an *Attachments* block:
   *View Screenshot* (a clickable preview, failures only) and a playable video
   with a *▶ Play Video* link.
-- **Bug Reports** — every failure classified `PRODUCT_BUG` on a traceable case,
+- **Bug Report** — every failure classified `PRODUCT_BUG` on a traceable case,
   as a local **Draft** Bug Candidate: title, description, steps to reproduce,
   expected and actual result, related Test Case and User Story, classification,
   environment, screenshot and video. **Nothing is created in Azure DevOps.** To publish
   one, a human reviews it and runs `/publish-bug <run>/bug-candidates/BUG-NNN.md`.
+  A human may instead resolve a candidate as **not a bug**: it stays in the section,
+  marked and grouped apart, with its original observation and evidence; the run's
+  counts never change. The manual report (`manual-report.html`) has the same section,
+  built by the same shared component from its own run's candidates (decision §10.6).
 
 `NOT RUN` is a skipped test (for example missing test data — never a FAIL).
 `NOT AUTOMATED` is an in-scope case of an executed story with no spec, with the

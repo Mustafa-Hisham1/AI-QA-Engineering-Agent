@@ -27,7 +27,7 @@ import {
 import { classifyFailure } from '../src/automation/reporting/classify.ts';
 import { escapeHtml, renderBugCandidateMarkdown, renderReportHtml } from '../src/automation/reporting/generator.ts';
 import { findNotAutomated, parsePlanRows } from '../src/automation/reporting/not-automated.ts';
-import { latestRunId, nextRunId, writeReport } from '../src/automation/reporting/writer.ts';
+import { latestRunId, moduleDirsOf, nextRunId, writeModuleReport, writeReport } from '../src/automation/reporting/writer.ts';
 import { sanitizeError, sanitizeText, stripAnsi } from '../src/automation/sanitizer.ts';
 import type { ActiveProject } from '../src/projects/active-project.ts';
 import { parseArtifact } from '../src/testcases/artifact.ts';
@@ -224,7 +224,7 @@ test('an annotation naming a case the artifact lacks is reported, not silently a
 });
 
 // ---------------------------------------------------------------------------
-// Bug Reports
+// Bug Report
 // ---------------------------------------------------------------------------
 
 test('a PRODUCT_BUG failure becomes a Draft Bug Candidate with every field', () => {
@@ -243,9 +243,9 @@ test('a PRODUCT_BUG failure becomes a Draft Bug Candidate with every field', () 
   strictEqual(report.results[1]!.bugCandidateId, 'BUG-001');
 
   const html = renderReportHtml(report);
-  ok(html.includes('<h2>Bug Reports</h2>'));
+  ok(html.includes('<h2>Bug Report</h2>'));
   ok(html.includes('id="BUG-001"'));
-  for (const label of ['Description', 'Steps to Reproduce', 'Actual Result', 'Expected Result', 'Related Test Case', 'Related User Story', 'Failure Classification', 'Environment', 'Attachments']) {
+  for (const label of ['Bug ID', 'Status', 'Description', 'Preconditions', 'Steps to Reproduce', 'Test Data', 'Actual Result — observed (confirmed)', 'Expected Result', 'Related Test Case', 'Related User Story', 'Failure Classification', 'Environment', 'Evidence', 'Local file']) {
     ok(html.includes(`<dt>${label}</dt>`), `Bug section must render ${label}`);
   }
   ok(html.includes(escapeHtml(bug!.title)));
@@ -265,10 +265,10 @@ test('the Bug Candidate Markdown carries what /publish-bug needs, as a Draft', (
   everything(markdown);
 });
 
-test('the Bug Reports section renders an explicit empty state', () => {
+test('the Bug Report section renders an explicit empty state', () => {
   const html = renderReportHtml(buildReport(input({ raws: [PASSED] })).report);
 
-  ok(html.includes('<h2>Bug Reports</h2>'));
+  ok(html.includes('<h2>Bug Report</h2>'));
   ok(html.includes('No Bug Candidates in this run'));
 });
 
@@ -562,17 +562,119 @@ test('writeReport writes an append-only run directory with only the planned atta
   };
   writeReport(runDir, buildReport(input({ raws: [raw], gate: realGate })));
 
-  deepStrictEqual(readdirSync(runDir).sort(), ['attachments', 'bug-candidates', 'execution-report.html', 'execution-results.json']);
+  deepStrictEqual(readdirSync(runDir).sort(), ['attachments', 'automation-report.html', 'bug-candidates', 'execution-results.json']);
   deepStrictEqual(readdirSync(join(runDir, 'attachments')).sort(), ['TC-99001-002.png', 'TC-99001-002.webm']);
   for (const file of readdirSync(join(runDir, 'attachments'))) {
     ok(!readFileSync(join(runDir, 'attachments', file)).includes(Buffer.from(PASSWORD)), `${file} must not be the decoy`);
   }
   deepStrictEqual(readdirSync(join(runDir, 'bug-candidates')), ['BUG-001.md']);
-  for (const file of ['execution-report.html', 'execution-results.json', 'bug-candidates/BUG-001.md']) {
+  for (const file of ['automation-report.html', 'execution-results.json', 'bug-candidates/BUG-001.md']) {
     everything(readFileSync(join(runDir, file), 'utf8'));
   }
 
   strictEqual(nextRunId(reports), 'RUN-002');
   strictEqual(latestRunId(reports), 'RUN-001');
   throws(() => writeReport(runDir, buildReport(input())), /append-only/);
+});
+
+test('an observation annotation is appended to its step Actual, sanitised, and changes no status', () => {
+  registerSecret(PASSWORD);
+  try {
+    const raw: RawTestResult = {
+      ...PASSED,
+      annotations: [
+        ...traced('TC-99001-001', 55294),
+        { type: 'observation', description: 'Step 2: Toast "Success — saved"' },
+        { type: 'observation', description: 'Step 2: Toast "Success — saved"' },
+        { type: 'observation', description: `Step 2: field showed ${PASSWORD}` },
+        { type: 'observation', description: 'no step number — ignored' },
+      ],
+    };
+    const [result] = buildReport(input({ raws: [raw] })).report.results;
+    strictEqual(result!.status, 'PASS');
+    const step2 = result!.steps.find((step) => step.index === 2)!;
+    strictEqual(step2.status, 'PASS');
+    ok(step2.actual.includes('Recorded: Toast "Success — saved"'), step2.actual);
+    strictEqual(step2.actual.split('Toast').length - 1, 1, 'a duplicate observation renders once');
+    ok(!step2.actual.includes(PASSWORD), 'a recorded value passes the sanitizer');
+    ok(!result!.steps.find((step) => step.index === 1)!.actual.includes('Recorded'));
+    ok(!JSON.stringify(result).includes('ignored'));
+  } finally {
+    clearSecrets();
+  }
+});
+
+// --- Interrupted runs and the Module report (human decision 2026-10-10) -------
+
+const WORKER_GONE: RawTestResult = {
+  ...FAILED,
+  status: 'failed',
+  durationMs: 0,
+  steps: [],
+  errors: ['Error: worker process exited unexpectedly (code=3221225794, signal=null)'],
+  attachments: [],
+};
+
+test('a test whose worker died before it started is NOT RUN, not FAIL, and raises no Bug Candidate', () => {
+  const { report } = buildReport(input({ raws: [WORKER_GONE] }));
+  const [result] = report.results;
+  strictEqual(result!.status, 'NOT RUN');
+  ok(result!.reason!.includes('never started'), result!.reason!);
+  strictEqual(result!.failure, null);
+  deepStrictEqual(report.totals, { total: 1, pass: 0, fail: 0, notRun: 1, notAutomated: 0 });
+  deepStrictEqual(report.bugCandidates, []);
+});
+
+test('an interrupted test is NOT RUN', () => {
+  const { report } = buildReport(input({ raws: [{ ...FAILED, status: 'interrupted' }] }));
+  strictEqual(report.results[0]!.status, 'NOT RUN');
+  ok(report.results[0]!.reason!.includes('interrupted'));
+});
+
+test('a worker that died after a step had run is still a FAIL — the test did run', () => {
+  const started: RawTestResult = { ...WORKER_GONE, steps: [{ title: 'Step 1: Enter the credentials', durationMs: 900, error: null }] };
+  strictEqual(buildReport(input({ raws: [started] })).report.results[0]!.status, 'FAIL');
+});
+
+test('the Module directory of a run is the parent of its specs tests/ directory', () => {
+  deepStrictEqual(
+    moduleDirsOf('NBO', [
+      'automation/NBO/Company/Operating-Country/tests/TC-52857-001.spec.ts',
+      'automation\NBO\Company\Operating-Country\tests\TC-52857-002.spec.ts',
+      'automation/NBO/Authentication/tests/TC-53717-001.spec.ts',
+      'src/automation/artifact-check/artifact-check.spec.ts',
+      'automation/OTHER/Mod/tests/TC-1-001.spec.ts',
+      null,
+    ]),
+    ['automation/NBO/Authentication', 'automation/NBO/Company/Operating-Country'],
+  );
+});
+
+test('the Module report links the run directory attachments and copies none', () => {
+  const root = mkdtempSync(join(tmpdir(), 'qa-module-report-'));
+  const moduleDir = join(root, 'automation', 'DEMO', 'Authentication');
+  const runDir = join(root, '.artifacts', 'reports', 'DEMO', 'RUN-007');
+  const { report } = buildReport(input());
+  const path = writeModuleReport(moduleDir, runDir, report);
+
+  strictEqual(path, join(moduleDir, 'automation-report.html'));
+  const html = readFileSync(path, 'utf8');
+  ok(html.includes('src="../../../.artifacts/reports/DEMO/RUN-007/attachments/TC-99001-002.png"'), 'screenshot linked into the run dir');
+  ok(html.includes('src="../../../.artifacts/reports/DEMO/RUN-007/attachments/TC-99001-001.webm"'), 'video linked into the run dir');
+  ok(!/src="attachments\//.test(html), 'no link to a non-existent local attachments/');
+  deepStrictEqual(readdirSync(moduleDir), ['automation-report.html'], 'nothing else is written to the Module directory');
+});
+
+test('the Module report has the same results and totals as the run report', () => {
+  const { report } = buildReport(input({ raws: [PASSED, FAILED, WORKER_GONE] }));
+  const strip = (html: string): string => html.replace(/(src|href)="[^"]*attachments\/[^"]*"/g, '');
+  const root = mkdtempSync(join(tmpdir(), 'qa-module-report-'));
+  const moduleHtml = readFileSync(writeModuleReport(join(root, 'm'), join(root, 'r', 'RUN-007'), report), 'utf8');
+  strictEqual(strip(moduleHtml), strip(renderReportHtml(report)));
+});
+
+test('an attachment base that escapes outward unsafely is refused', () => {
+  const { report } = buildReport(input());
+  throws(() => renderReportHtml(report, { attachmentBase: 'x/../../etc' }));
+  throws(() => renderReportHtml(report, { attachmentBase: '"><script>' }));
 });

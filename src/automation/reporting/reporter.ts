@@ -19,8 +19,9 @@ import { relative } from 'node:path';
 
 import type { FullConfig, FullResult, Reporter, TestCase, TestResult, TestStep } from '@playwright/test/reporter';
 
-import { resolveActiveProject } from '../../projects/active-project.ts';
-import { ArtifactError, artifactPathFor, parseArtifact } from '../../testcases/artifact.ts';
+import { readProfileSubModules, resolveActiveProject } from '../../projects/active-project.ts';
+import { ArtifactError } from '../../testcases/artifact.ts';
+import { loadTestCases } from '../../testcases/store.ts';
 import type { TestCaseArtifact, TestCaseRecord } from '../../testcases/model.ts';
 import { REPORT_ROOT, VIDEO_ALLOWED } from '../artifact-policy.ts';
 import { AutomationConfigError, registerEnvironmentSecrets, resolveAutomationEnvironment } from '../config.ts';
@@ -28,7 +29,7 @@ import { sanitizeText } from '../sanitizer.ts';
 import { buildReport, insideAny, signatureOfBytes, type FileSignature, type RawStep, type RawTestResult } from './build.ts';
 import type { ReportEnvironment } from './model.ts';
 import { findNotAutomated } from './not-automated.ts';
-import { nextRunId, writeReport } from './writer.ts';
+import { moduleDirsOf, nextRunId, writeModuleReport, writeReport } from './writer.ts';
 
 export interface ExecutionReporterOptions {
   /** The active project, pinned by the config. */
@@ -108,14 +109,15 @@ export default class ExecutionReporter implements Reporter {
     if (this.raws.length === 0) return;
 
     try {
-      const htmlPath = this.write(result.duration);
+      const { htmlPath, moduleReports } = this.write(result.duration);
       console.log(`\nExecution report: ${posix(htmlPath)}`);
+      for (const path of moduleReports) console.log(`Module report:    ${posix(path)}`);
     } catch (error) {
       console.error(`\nExecution report NOT written: ${sanitizeText(error instanceof Error ? error.message : String(error))}`);
     }
   }
 
-  private write(durationMs: number): string {
+  private write(durationMs: number): { htmlPath: string; moduleReports: string[] } {
     const project = resolveActiveProject(this.options.projectKey, this.options.projectsRoot);
     registerEnvironmentSecrets(project);
 
@@ -137,7 +139,9 @@ export default class ExecutionReporter implements Reporter {
     const artifacts = new Map<number, TestCaseArtifact>();
     for (const storyId of storyIds) {
       try {
-        artifacts.set(storyId, parseArtifact(artifactPathFor(project.root, storyId), storyId));
+        // Step actions and Expected Results come from the CSV — the current,
+        // human-reviewed content (§6.4) — never from the Markdown rendering.
+        artifacts.set(storyId, loadTestCases(project.root, storyId));
       } catch (error) {
         if (!(error instanceof ArtifactError)) throw error;
         // Reported per test as "not found in the Test Case artifact".
@@ -151,8 +155,13 @@ export default class ExecutionReporter implements Reporter {
       this.raws.map((raw) => raw.annotations.find((entry) => entry.type === 'test-case')?.description).filter((id): id is string => !!id),
     );
 
-    const notAutomated = findNotAutomated(project, [...artifacts.values()], executedIds, existsSync, (path) =>
-      existsSync(path) ? readFileSync(path, 'utf8') : null,
+    const notAutomated = findNotAutomated(
+      project,
+      [...artifacts.values()],
+      executedIds,
+      existsSync,
+      (path) => (existsSync(path) ? readFileSync(path, 'utf8') : null),
+      readProfileSubModules(project),
     );
 
     const projectRoot = `${this.options.outputRoot ?? REPORT_ROOT}/${project.key}`;
@@ -175,6 +184,12 @@ export default class ExecutionReporter implements Reporter {
       },
     });
 
-    return writeReport(`${projectRoot}/${runId}`, built);
+    const runDir = `${projectRoot}/${runId}`;
+    const htmlPath = writeReport(runDir, built);
+    // The same run, in the Module directory of the specs it executed (§7.2).
+    const moduleReports = moduleDirsOf(project.key, this.raws.map((raw) => raw.specFile)).map((dir) =>
+      writeModuleReport(dir, runDir, built.report),
+    );
+    return { htmlPath, moduleReports };
   }
 }

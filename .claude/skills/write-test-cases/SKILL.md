@@ -1,13 +1,24 @@
 ---
 name: write-test-cases
-description: Generate Test Cases for an analyzed User Story from its local Requirement Analysis and confirmed decisions, then AI self-review them into docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md. Use when asked to write, generate, or regenerate the test cases for a User Story by ID. Takes the User Story ID as its argument.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git diff:*), Bash(git status:*), Bash(grep:*), Bash(npm run testcases:check:*)
+description: Generate Test Cases for an analyzed User Story from its local Requirement Analysis and confirmed decisions, then AI self-review them into docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv (the source of truth) and its rendering test-cases.md. Use when asked to write, generate, or regenerate the test cases for a User Story by ID. Takes the User Story ID as its argument.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash(git diff:*), Bash(git status:*), Bash(grep:*), Bash(npm run testcases:check:*), Bash(npm run testcases:render:*), Bash(npm run testcases:migrate:*), Bash(npm run testcases:show:*)
 ---
 
 # Write Test Cases for a User Story
 
 Produce or update the persistent **Test Case artifact** for a User Story from the Requirement
 Analysis, confirmed decisions and source snapshot **already in this repository**.
+
+Every story has exactly **two** test-case files (`docs/product-decisions.md` §6.4):
+
+| File | Role |
+|---|---|
+| `test-cases.csv` | **The single source of truth for test-case content.** One row per case. The human reviews and edits this file; every later workflow reads it. |
+| `test-cases.md` | A **rendering** of the CSV for reading, produced by `npm run testcases:render`, plus narrative the CSV does not hold (provenance, prerequisites, coverage map, exclusions, self-review). |
+
+**You write the cases into the CSV, never into the Markdown.** The Markdown's case block is
+generated from the CSV; you write only the narrative around it. If the two ever disagree, the CSV
+wins — re-render, never edit the CSV to match the Markdown.
 
 This skill **reads local files and writes local files only.** It never modifies Azure DevOps,
 never creates Test Cases or Bugs in Azure DevOps, never approves anything, and never commits.
@@ -62,8 +73,13 @@ If no ID was supplied, ask for one and stop. Do not guess an ID.
 docs/projects/<KEY>/requirements/US-<ID>/requirement-analysis.md    the analysis      (required)
 docs/projects/<KEY>/requirements/US-<ID>/decisions.md               human decisions   (read if present)
 docs/projects/<KEY>/requirements/US-<ID>/source/                    verbatim snapshot (read if present)
-docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md                the output
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv               the output — source of truth
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md                the output — rendering + narrative
 ```
+
+- **`test-cases.md` exists but `test-cases.csv` does not** → a legacy Markdown-only artifact.
+  Migrate it first — `npm run testcases:migrate -- <ID> --project <KEY>` — which writes the CSV
+  only if every case round-trips exactly, then continue from the CSV. Never hand-copy cases.
 
 - **No `requirement-analysis.md`** → **stop.** Report that US <ID> has not been analysed and that
   the `analyze-story` skill must run first. Do not analyse it yourself here, and do not generate
@@ -89,8 +105,9 @@ Read, in this order:
 
 ## Step 3 — Decide whether work is needed
 
-If `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md` already exists, compare its recorded **content
-fingerprint** with the one in the analysis's provenance table:
+If `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv` already exists, compare the **content
+fingerprint** recorded in the provenance header of `test-cases.md` with the one in the analysis's
+provenance table:
 
 - **Fingerprints match and no decision is newer than the artifact** → do not regenerate. Report
   that the set is current, with its case count, status breakdown and `Need Automation` Yes/No
@@ -109,16 +126,23 @@ fingerprint** with the one in the analysis's provenance table:
   value as human-reviewed. If your fresh assessment disagrees, say so in the self-review record's
   automation table; **never overwrite the cell**. Only a case with no value yet gets a new
   recommendation.
+- **The CSV may hold human edits — titles, steps, expected results, any cell.** On an update,
+  **edit only the rows the requirement change affects**, in place, and leave every other row
+  exactly as it is. Never regenerate the whole CSV from the analysis: that silently undoes the
+  human's edits. Never restore a value from the Markdown, from an earlier version of your own
+  output, or from memory. Where a requirement change contradicts a human edit, keep the edit and
+  raise it in the self-review record.
 
-**Before rewriting an existing artifact, snapshot it:**
+**Before revising an existing CSV, snapshot it:**
 
 ```
 npm run testcases:check -- <ID> --project <KEY> --snapshot
 ```
 
-This saves the current file, human edits included, as `test-cases.previous.md` beside it
-(gitignored). Step 8 compares the regenerated artifact against it. Skip the snapshot only for a
-first generation.
+This saves the current CSV, human edits included, as `test-cases.previous.csv` beside it
+(gitignored). Step 8 compares the revised CSV against it and **lists every case whose content
+changed** — confirm each one is a change you meant to make. Skip the snapshot only for a first
+generation.
 
 ## Step 4 — Determine scope and title fields
 
@@ -175,7 +199,7 @@ Every case carries every field from `docs/product-decisions.md` §3:
 | Test Type | The coverage kinds from Step 5 |
 | Requirement Reference | The source's own requirement/AC IDs |
 | Decisions Applied | The `[D]` decision IDs that govern this case, or `—` |
-| Azure DevOps ID | `—` until published |
+| Azure DevOps ID | Empty until published (rendered as `—`) |
 | Review/Lifecycle Status | `AI-Reviewed` after your self-review — never `Approved` |
 | Need Automation | `Yes` or `No` — your recommendation per Step 6a; a human may change it |
 | Precondition | The state the case needs, and how to reach it |
@@ -260,15 +284,46 @@ value, and from then on that value wins over your recommendation (Step 3).
 automatable or not (a test hook for OTP, for example), that fact lives in the project's
 `profile.md`. Read it there and cite it in the rationale.
 
-## Step 7 — Write the artifact
+## Step 7 — Write the artifact: the CSV first, then the Markdown from it
 
-Write `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md`, structured so it stays editable and so the
-publishing step can consume it case by case:
+### 7a. Write the cases into `test-cases.csv`
+
+One row per case, in display order, with exactly this header — no column renamed, added, removed
+or reordered (the parser refuses anything else):
+
+```
+Test Case ID,User Story ID,Section,Section Note,Summary,Title,Project,Module,Feature/Page,Test Type,Requirement Reference,Decisions Applied,Azure DevOps ID,Review/Lifecycle Status,Need Automation,Precondition,Test Data,Steps,Expected Results,Notes
+```
+
+| Column | Content |
+|---|---|
+| Test Case ID | `TC-<ID>-NNN` |
+| User Story ID | `<ID>` |
+| Section | The `##` group heading the case is rendered under (a requirement area). Blank → its Feature/Page |
+| Section Note | Optional text introducing the section — **first row of the section only** |
+| Summary | The short scenario line shown after the ID in the case heading |
+| Title … Need Automation | The Step 6 fields. Azure DevOps ID is **empty** until published; Need Automation is `Yes` or `No` |
+| Precondition, Test Data, Notes | One Markdown line per line, verbatim (e.g. `- Account handle: \`ADMIN_ALL\``) |
+| Steps | `1. <action>` per line, numbered |
+| Expected Results | `1. <expected>` per line, **the same numbers as Steps** — every step has its expected result |
+
+CSV rules — get these right; the strict parser rejects a malformed file with the row number:
+
+- A value containing a comma, a double quote or a line break is enclosed in double quotes, and
+  every double quote inside it is doubled (`""`). Multiline columns are always quoted.
+- Never put an unescaped `"` inside an unquoted value.
+- A line in Steps / Expected Results that does not start with `<n>. ` continues the step above it.
+
+### 7b. Write the narrative of `test-cases.md`, then render the cases into it
+
+The Markdown holds the narrative the CSV does not, structured in this order, with the
+generated-block markers where the cases go:
 
 1. **Provenance header** — work item ID, analysis/decisions/source paths, the revision and the
-   **full content fingerprint** copied from the analysis, generation date, test scope, target
-   environment, case count, and what has been published (nothing, at first). The fingerprint is
-   what makes staleness detectable later; never omit or truncate it.
+   **full content fingerprint** copied from the analysis (row `Content fingerprint at generation`),
+   generation date, test scope, target environment, case count, and what has been published
+   (nothing, at first). The fingerprint is what makes staleness detectable later; never omit or
+   truncate it. State that `test-cases.csv` is the source of truth.
 2. **How to read this file** — the status vocabulary (`product-decisions.md` §6.1); the
    `Need Automation` values, stating that they are an AI recommendation for human review,
    independent of the status (`product-decisions.md` §6.3); and the conventions the cases rely on.
@@ -277,9 +332,22 @@ publishing step can consume it case by case:
 4. **Coverage map** — requirement → test case IDs, plus open questions → the cases that observe
    them.
 5. **Deliberately not covered** — each gap, its requirement, why, and what would unblock it.
-6. **The test cases**, grouped by requirement area, in a stable order.
-7. **Rejected test cases** — the section rejected items move to, keeping their IDs.
-8. **AI self-review record** — Step 8's output.
+6. **The generated block** — exactly these two lines, nothing between them:
+   ```
+   <!-- BEGIN GENERATED TEST CASES: rendered from test-cases.csv. Edit the CSV, then run `npm run testcases:render`. -->
+   <!-- END GENERATED TEST CASES -->
+   ```
+   The renderer fills it with the cases grouped by Section and the *Rejected test cases* section.
+7. **AI self-review record** — Step 8's output.
+
+Then render:
+
+```
+npm run testcases:render -- <ID> --project <KEY>
+```
+
+It reads the CSV and writes only the block between the markers; the CSV is never modified. **Never
+write or edit cases inside the generated block by hand** — change the CSV and render again.
 
 ## Step 8 — Self-review as a Senior QA Engineer
 
@@ -318,17 +386,20 @@ review — if nothing needed changing, say what you checked that made you confid
 
 Set every case's status to `AI-Reviewed`. **Never `Approved`.**
 
-Then run the check, and fix the artifact until it passes:
+Then render and run the check, and fix the **CSV** until it passes:
 
 ```
-npm run testcases:check -- <ID> --project <KEY>
+npm run testcases:render -- <ID> --project <KEY>
+npm run testcases:check  -- <ID> --project <KEY>
 ```
 
-The check parses the artifact strictly and fails if any case lacks `Need Automation`. When a
-snapshot from Step 3 exists, it also fails on any Test Case ID, Azure DevOps ID, human-set status
-or `Need Automation` value the regeneration lost. Restore a lost value from
-`test-cases.previous.md`, and never edit the snapshot to make the check pass. A clean check
-removes the snapshot.
+The check parses the CSV strictly — header, unique valid IDs, steps paired with expected results,
+statuses — fails if any case lacks `Need Automation`, and fails if `test-cases.md` does not match
+the CSV case for case (fix by rendering, never by editing the CSV to match). When a snapshot from
+Step 3 exists, it also fails on any Test Case ID, Azure DevOps ID, human-set status or
+`Need Automation` value the revision lost, and lists every case whose content changed. Restore a
+lost value from `test-cases.previous.csv`, and never edit the snapshot to make the check pass. A
+clean check removes the snapshot.
 
 ## Step 9 — Report
 

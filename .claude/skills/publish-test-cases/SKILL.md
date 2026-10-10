@@ -1,14 +1,19 @@
 ---
 name: publish-test-cases
-description: Publish the approved Test Cases of a User Story to Azure DevOps as child Test Case work items, then record each new Azure DevOps ID in the local artifact. Use when asked to publish, push, or create the approved test cases of a User Story in Azure DevOps. Takes the User Story ID as its argument. Performs irreversible external writes and requires explicit human approval immediately before the first write.
-allowed-tools: Read, Edit, Glob, Grep, Bash(npm run testcases:publish:*), Bash(npm run typecheck:*), Bash(git status:*), Bash(git diff:*)
+description: Publish the approved Test Cases of a User Story to Azure DevOps as child Test Case work items, from the story's test-cases.csv (the source of truth), then record each new Azure DevOps ID back into that CSV. Use when asked to publish, push, or create the approved test cases of a User Story in Azure DevOps. Takes the User Story ID as its argument. Performs irreversible external writes and requires explicit human approval immediately before the first write.
+allowed-tools: Read, Edit, Glob, Grep, Bash(npm run testcases:publish:*), Bash(npm run testcases:check:*), Bash(npm run testcases:show:*), Bash(npm run typecheck:*), Bash(git status:*), Bash(git diff:*)
 ---
 
 # Publish Test Cases for a User Story
 
-Create the **approved** Test Cases in `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md` as **child Test Case
+Create the **approved** Test Cases in `docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv` as **child Test Case
 work items** of that User Story in Azure DevOps, then record each new Azure DevOps ID back into
-the local artifact.
+that CSV.
+
+**The CSV is the single source of truth for test-case content** (`docs/product-decisions.md`
+§6.4). What is published is the CSV **as it stands now**, including every human edit made after
+generation. `test-cases.md` is a rendering and is never read for content; the publisher
+re-renders it after each recorded ID.
 
 **This skill performs irreversible external writes.** It is the only workflow in this project
 that does. Everything below exists to make sure each write is intended, approved, and
@@ -47,8 +52,11 @@ real work items under the wrong story.
    An approval given earlier in the session, or recorded in the artifact, **does not** authorize
    the write. Show the exact operation, then ask.
 3. **Never modify Test Case content while publishing.** Title, precondition, steps, expected
-   results, test data and requirement reference go across exactly as approved. Publishing is not
-   an editing step.
+   results, test data and requirement reference go across exactly as they stand in the CSV.
+   Publishing is not an editing step — never edit the CSV to make a publish work, and never
+   restore a value from the Markdown or an earlier version.
+   Because the CSV is editable, the human's approval immediately before the write (rule 2) is
+   approval of **the content the dry run shows** — which is read from the current CSV.
 4. **Never create a duplicate.** A case with a recorded Azure DevOps ID is never created again,
    and cases without one are matched against the story's existing children by title first.
 5. **Never blind-retry a write** (invariant 4). The tooling makes exactly one attempt per item.
@@ -59,13 +67,24 @@ real work items under the wrong story.
 ## Step 1 — Read the local state
 
 ```
-docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.csv     source of truth — what is published
+docs/projects/<KEY>/test-cases/US-<ID>/test-cases.md      rendering + provenance header
 ```
 
-- **Missing** → stop. Report that US <ID> has no Test Case artifact and that the
+```bash
+npm run testcases:check -- <ID> --project <KEY>
+```
+
+- **No CSV** → stop. If only `test-cases.md` exists it is a legacy artifact: report that it must
+  be migrated (`npm run testcases:migrate`) before publishing. If neither exists, the
   `write-test-cases` skill must run first.
-- Read the provenance header, the approval record, and each case's
-  **Review/Lifecycle Status** and **Azure DevOps ID**.
+- **The check reports a parse error** → stop and report it. A CSV the strict parser refuses is
+  never published.
+- **The check reports only that `test-cases.md` is out of date** → not a blocker: the CSV is what
+  is published, and the publisher re-renders the Markdown as it records IDs. Say so.
+- Read each case's **Review/Lifecycle Status** and **Azure DevOps ID** from the CSV
+  (`npm run testcases:show -- <ID> --project <KEY>` prints them through the strict parser), and the
+  provenance header from the Markdown.
 
 Report the counts before doing anything else: total cases, `Approved`, already `Published`, and
 anything in another status.
@@ -76,7 +95,7 @@ anything in another status.
 npm run testcases:publish -- <ID>
 ```
 
-A dry run is the **default** — this command writes nothing. It reads the artifact, reads the
+A dry run is the **default** — this command writes nothing. It reads the CSV, reads the
 User Story and its existing children over the **read-only** path, and prints:
 
 - the parent's type, area path and iteration path (children inherit these),
@@ -124,11 +143,14 @@ npm run testcases:publish -- <ID> --confirm             # the rest
 ```
 
 The publisher creates one work item per request, and **writes each returned Azure DevOps ID into
-the artifact — flipping that case's status to `Published` — before attempting the next create.**
+the CSV — flipping that case's status to `Published` — before attempting the next create.**
 That ordering is what makes an interrupted run safe to resume: nothing that exists in Azure DevOps
-is left unrecorded locally.
+is left unrecorded locally. Only those two cells of that row change; every other cell, human edits
+included, keeps its value. The Markdown is re-rendered after each write-back.
 
-Do not edit the artifact's ID or status cells by hand; the tooling owns them.
+Do not edit the ID or status cells by hand; the tooling owns them. **Close the CSV in any
+spreadsheet tool before publishing** — a file locked by the tool cannot be written, and the
+publisher then reports the created work item ID for you to record by hand.
 
 If a case fails:
 
@@ -144,22 +166,23 @@ If a case fails:
 npm run testcases:publish -- <ID> --verify
 ```
 
-Verification reads Azure DevOps rather than trusting the artifact, and checks that every locally
+Verification reads Azure DevOps rather than trusting the CSV, and checks that every locally
 published case:
 
 - **exists as a child** of User Story <ID>,
 - **is of type `Test Case`**,
-- has a **title matching** the artifact,
-- has a **step count matching** the artifact — a title match alone would not catch a steps
+- has a **title matching** the CSV,
+- has a **step count matching** the CSV — a title match alone would not catch a steps
   document that Azure DevOps accepted but stored empty.
 
-Report any mismatch as a failure. Do not "fix" it by editing the artifact to match Azure DevOps:
+A human may legitimately edit a published case in the CSV later; verification then reports the
+divergence. Report any mismatch as a failure. Do not "fix" it by editing the CSV to match Azure DevOps:
 a divergence between an approved artifact and the published record is a **human decision**
 (`docs/product-decisions.md` §13).
 
 ## Step 6 — Record and report
 
-Update the artifact's provenance header with what was published: how many, the Azure DevOps ID
+Update the provenance header in `test-cases.md` (narrative, outside the generated block) with what was published: how many, the Azure DevOps ID
 range, the date, and that verification passed. Note that the publish was authorized by a separate
 human statement.
 
@@ -169,7 +192,7 @@ Report:
 2. The **created Azure DevOps IDs**, mapped to their internal Test Case IDs.
 3. Any failures, with the Azure DevOps reason and what to do next.
 4. The verification result.
-5. That the artifact now records every ID, and that re-running cannot duplicate.
+5. That the CSV now records every ID (and the Markdown was re-rendered), and that re-running cannot duplicate.
 
 **Documentation-impact check — mandatory, in this same task** (`CLAUDE.md` →
 *Documentation synchronization*, `docs/product-decisions.md` §18). If publishing changed anything

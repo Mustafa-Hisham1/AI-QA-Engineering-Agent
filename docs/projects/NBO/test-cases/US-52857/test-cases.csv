@@ -1,0 +1,478 @@
+﻿Test Case ID,User Story ID,Section,Section Note,Summary,Title,Project,Module,Feature/Page,Test Type,Requirement Reference,Decisions Applied,Azure DevOps ID,Review/Lifecycle Status,Need Automation,Precondition,Test Data,Steps,Expected Results,Notes
+TC-52857-001,52857,Operating Country Access,,View-only user sees the list with no Add and no row actions,[NBO][Company][Operating Country Access] Verify a View-only user sees the Operating Country list with no Add button and no row actions,NBO,Company,Operating Country Access,Positive · Security · UI,"REQ-OPC-039 AC-1, AC-2; story Access Control AC-2",D-04,,Approved,Yes,- At least one Operating Country exists (STG has 7).,- Account handle: `OPERATING_COUNTRIES_VIEW_ONLY`,"1. Log in as `OPERATING_COUNTRIES_VIEW_ONLY` and open the Operating Country list page
+2. Look for the *Add Operating Country* button
+3. Inspect the Actions column of every row
+4. Type `Egy` in the name filter and click Search","1. The list loads with its filters and records
+2. The button is **not** shown
+3. No row offers any action — no Edit, Approve, Reject, Activate or Deactivate
+4. Matching records are listed — the View-only user can search",
+TC-52857-002,52857,Operating Country Access,,View-only user cannot reach the Add or Edit form by URL,[NBO][Company][Operating Country Access] Verify a View-only user is kept off the Add and Edit forms when opening their URLs directly,NBO,Company,Operating Country Access,Negative · Security · UI,"REQ-OPC-038 AC-1, REQ-OPC-039 AC-2",D-04,,Approved,Yes,"- The id of any existing Operating Country is known — take it from a row's Edit link while logged
+  in as `ADMIN_ALL`.","- Account handle: `OPERATING_COUNTRIES_VIEW_ONLY`
+- Record id: any existing Operating Country id","1. Log in as `OPERATING_COUNTRIES_VIEW_ONLY` and enter the Add form URL (`/admin/company/operating-country/add`) in the address bar
+2. Enter the Edit URL of the known record (`/admin/company/operating-country/<id>`)","1. The user is returned to the Operating Country list; no Add form is shown
+2. No editable form with a save, Approve or Reject action is available to the user. Record what is shown (redirect, read-only view or error)","- Step 1 matches the behaviour observed on 2026-10-09. Step 2 was not observed; only the outcome
+  (no way to change the record) is asserted, not how it is achieved."
+TC-52857-003,52857,Operating Country Access,,"Maker is offered Add, Edit and Deactivate but never Approve or Reject","[NBO][Company][Operating Country Access] Verify a Maker sees Add, and Edit plus Deactivate on an approved active row, with no Approve or Reject",NBO,Company,Operating Country Access,Positive · Security · UI,"REQ-OPC-039 AC-1, AC-3; story Access Control AC-3","D-02, D-01",,Approved,Yes,- At least one *Approved / Active* Operating Country exists (STG has 7).,- Account handle: `OPERATING_COUNTRIES_MAKER`,"1. Log in as `OPERATING_COUNTRIES_MAKER` and open the Operating Country list page
+2. Inspect the Actions column of an *Approved / Active* row
+3. Check the same row for Approve, Reject and View All Branches","1. The *Add Operating Country* button is shown
+2. Exactly **Edit** and **Deactivate** are offered
+3. None of them is offered",
+TC-52857-004,52857,Operating Country Access,,Approver is offered Reject and Deactivate but no Add and no Edit,[NBO][Company][Operating Country Access] Verify an Approver sees no Add button and only Reject plus Deactivate on an approved active row,NBO,Company,Operating Country Access,Positive · Security · UI,REQ-OPC-039 AC-1; story Access Control AC-4,"D-03, D-01",,Approved,Yes,#NAME?,- Account handle: `OPERATING_COUNTRIES_APPROVER`,"1. Log in as `OPERATING_COUNTRIES_APPROVER` and open the Operating Country list page
+2. Inspect the Actions column of an *Approved / Active* row
+3. Check the same row for Edit and View All Branches","1. The list loads; the *Add Operating Country* button is **not** shown
+2. Exactly **Reject** and **Deactivate** are offered
+3. Neither is offered","- D-03 overrides REQ-OPC-002 AC-5 / REQ-OPC-039 AC-1, which give approval authority the Add action.
+  Seeing Add or Edit here is a FAIL against D-03."
+TC-52857-005,52857,Operating Country Access,,Approver cannot reach the Add or Edit form by URL,[NBO][Company][Operating Country Access] Verify an Approver cannot create or amend a record when opening the Add and Edit URLs directly,NBO,Company,Operating Country Access,Negative · Security · UI,REQ-OPC-039 AC-5,D-03,,Approved,Yes,- The id of any existing Operating Country is known (from a row's Edit link as `ADMIN_ALL`).,"- Account handle: `OPERATING_COUNTRIES_APPROVER`
+- Record id: any existing Operating Country id","1. Log in as `OPERATING_COUNTRIES_APPROVER` and enter the Add form URL directly
+2. Enter the Edit URL of the known record directly","1. No Add form with a save action is available. Record what is shown (redirect, empty page or error)
+2. No form allowing the name or remarks to be saved is available. Record what is shown","- Not observed during analysis. **Do not submit anything** if a form does appear: record it and
+  report the case FAIL against D-03, without creating data."
+TC-52857-006,52857,Operating Country Access,,"All-permission user is offered Add, Edit, Reject and Deactivate","[NBO][Company][Operating Country Access] Verify an all-permission user sees Add, and Edit plus Reject plus Deactivate on an approved active row",NBO,Company,Operating Country Access,Positive · UI,"REQ-OPC-039 AC-1, REQ-OPC-037",D-01,,Approved,Yes,#NAME?,- Account handle: `ADMIN_ALL`,"1. Log in as `ADMIN_ALL` and open the Operating Country list page
+2. Inspect the Actions column of an *Approved / Active* row
+3. Check the row for View All Branches","1. The *Add Operating Country* button is shown
+2. Exactly **Edit**, **Reject** and **Deactivate** are offered
+3. Not offered (D-01, analysis C-16)",
+TC-52857-007,52857,Operating Country Access,,User without the menu right cannot reach any Operating Country screen,"[NBO][Company][Operating Country Access] Verify a user without the Operating Country menu right cannot see the menu entry or open the list, Add or Edit URLs",NBO,Company,Operating Country Access,Negative · Security · UI,"REQ-OPC-038 AC-1, AC-3; story Access Control AC-1",—,,Approved,Yes,"- The account without the Operating Country menu right is configured as `OPC_USER_NO_MENU`
+  (supplied by the human 2026-10-10, D-07). If it cannot log in, the case is BLOCKED /
+  `AUTHENTICATION_ISSUE`, not FAIL.",- Account handle: `OPC_USER_NO_MENU`,"1. Log in as `OPC_USER_NO_MENU` and open the navigation menu
+2. Enter the list URL (`/admin/company/operating-country`) directly
+3. Enter the Add URL (`/admin/company/operating-country/add`) directly","1. No Operating Country entry is present under Company
+2. The Operating Country list is not displayed
+3. The Add form is not displayed",
+TC-52857-008,52857,Add Operating Country,,Add form for an all-permission user shows Remarks and only Approve,"[NBO][Company][Add Operating Country] Verify an all-permission user's Add form shows Name, Country, Currency and Remarks as required with only Cancel and Approve actions",NBO,Company,Add Operating Country,Positive · UI,"REQ-OPC-002 AC-2, AC-4; REQ-OPC-046 AC-1, AC-7",D-01,,Approved,Yes,#NAME?,- Account handle: `ADMIN_ALL`,"1. Log in as `ADMIN_ALL`, open the list page and click *Add Operating Country*
+2. Inspect the fields
+3. Inspect the action buttons","1. The *Add Operating Country* form opens
+2. **Operating Country Name**, **Country**, **Currency** and **Remarks** are present, each marked *(required)*
+3. Exactly **Cancel** and **Approve**; no *Send For Approval*",
+TC-52857-009,52857,Add Operating Country,,Maker's Add form requires Remarks and offers only Send For Approval,"[NBO][Company][Add Operating Country] Verify a Maker's Add form requires Remarks, offers only Send For Approval and blocks an empty submission",NBO,Company,Add Operating Country,Positive · Validation · UI,"REQ-OPC-002 AC-1, AC-2; REQ-OPC-003 AC-7; REQ-OPC-006","D-01, D-02",,Approved,Yes,#NAME?,- Account handle: `OPERATING_COUNTRIES_MAKER`,"1. Log in as `OPERATING_COUNTRIES_MAKER` and click *Add Operating Country*
+2. Inspect the fields
+3. Inspect the action buttons
+4. Leave every field empty and click *Send For Approval*","1. The Add form opens
+2. Name, Country, Currency **and Remarks** are present, each marked *(required)*
+3. Exactly **Cancel** and **Send For Approval**; no Approve
+4. Nothing is saved and the form stays open. Name shows *""Operating Country Name is required.""*, Country *""Country is required.""*, Currency *""Currency is required.""*, and Remarks shows validation feedback","- The specification hides Remarks from a Maker (REQ-OPC-003 AC-7). The implementation shows it
+  as required, and D-01 makes that the expected behaviour (analysis C-13).
+- The Remarks message text for a Maker was not observed; step 4 asserts only that feedback is shown."
+TC-52857-010,52857,Add Operating Country,,Submitting an empty Add form shows a required message on every field,"[NBO][Company][Add Operating Country] Verify required-field messages appear for Name, Country, Currency and Remarks when an all-permission user clicks Approve on an empty form",NBO,Company,Add Operating Country,Negative · Validation · UI,"REQ-OPC-006 AC-1…AC-3; REQ-OPC-003 AC-2, AC-6; REQ-OPC-041 AC-1",D-01,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- All fields empty","1. Log in as `ADMIN_ALL` and open the Add form
+2. Click **Approve**
+3. Read each field's message","1. The form opens with every field empty
+2. Nothing is saved; the form stays open with a summary saying fields need attention
+3. Name: *""Operating Country Name is required.""* · Country: *""Country is required.""* · Currency: *""Currency is required.""* · Remarks: *""Remarks is required.""*","- D-01 replaces the specification's texts (*""Operating Country Name Cannot Be Empty.""*, *""Country
+  Must Be Selected.""*, *""Currency Must Be Selected.""*, *""Required!""*) with the texts observed on STG
+  (analysis C-03, C-04)."
+TC-52857-011,52857,Add Operating Country,,Name length is accepted from 3 to 100 characters and rejected outside,[NBO][Company][Add Operating Country] Verify the Name accepts 3 and 100 characters and shows the length message for 2 and 101 characters,NBO,Company,Add Operating Country,Boundary · Validation · UI,"REQ-OPC-007 AC-1, AC-2, AC-5; REQ-OPC-041 AC-1",D-01,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- 2 characters: `Ab` · 3 characters: `Abc`
+- 100 characters: `Abcdefghij` repeated 10 times · 101 characters: the same plus `K`
+- 2 characters plus a trailing space: `Ab ` (3 typed, 2 after trimming)","1. Log in as `ADMIN_ALL` and open the Add form
+2. Type `Ab` in Name and press Tab
+3. Replace with `Abc` and press Tab
+4. Replace with the 100-character value and press Tab
+5. Replace with the 101-character value and press Tab
+6. Replace with `Ab ` (trailing space) and press Tab
+7. Click Cancel","1. The form opens
+2. The field is flagged with *""Operating Country Name must be between 3 and 100 characters.""*
+3. The field is not flagged invalid
+4. The field is not flagged invalid
+5. The field is flagged with the same length message
+6. The field is flagged with the length message — length is measured after trimming (REQ-OPC-007 AC-5)
+7. The form closes; nothing is created","- Two-sided boundary: 2 / 3 and 100 / 101.
+- Step 6 asserts a specification rule that was not observed in the UI. If the UI accepts it, record
+  that and report FAIL against REQ-OPC-007 AC-5. D-01 does not cover unobserved behaviour.
+- During analysis a previous message sometimes stayed visible after a valid value was entered.
+  Judge ""not flagged invalid"" by the field's invalid state and highlighting, not by stale text.
+- **Flagged for human review (2026-10-10):** step 6 still depends on specification-only behaviour
+  (trimmed length, REQ-OPC-007 AC-5) that has not been observed on STG."
+TC-52857-012,52857,Add Operating Country,,"Name character rules reject digits, symbols and bad spacing and accept the permitted set","[NBO][Company][Add Operating Country] Verify the Name rejects digits, symbols, a leading space and double spaces and accepts letters, accents, hyphens, apostrophes and underscores",NBO,Company,Add Operating Country,Negative · Validation · UI,"REQ-OPC-008 AC-1, AC-3, AC-5; REQ-OPC-009 AC-3",D-01,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- Invalid: `1abc` (starts with a digit), `Abc1` (contains a digit), `Abc@Def` (symbol), ` Abcd` (leading space), `Ab  Cd` (two consecutive spaces)
+- Valid: `Côte d'Ivoire`, `Guinea-Bissau`, `Trinidad and Tobago`, `Abc_Def`","1. Log in as `ADMIN_ALL` and open the Add form
+2. Type `1abc` in Name and press Tab
+3. Replace with `Abc1`, press Tab
+4. Replace with `Abc@Def`, press Tab
+5. Replace with ` Abcd` (leading space), press Tab
+6. Replace with `Ab  Cd`, press Tab
+7. Enter each valid value in turn, pressing Tab after each
+8. Click Cancel","1. The form opens
+2. Flagged with *""Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.""*
+3. Flagged with the same message
+4. Flagged with the same message
+5. Flagged with *""Operating Country Name may not start with a space or contain consecutive spaces.""*
+6. The field is flagged invalid with a message. Record which message is shown
+7. None is flagged invalid
+8. Nothing is created","- The ban on consecutive spaces is an implementation rule beyond REQ-OPC-008; D-01 makes it expected
+  (analysis C-06). On STG, `Ab  Cd` showed the ""Latin letters"" message rather than the
+  ""consecutive spaces"" one — step 6 therefore asserts only that the field is flagged.
+- Accented letters are accepted despite the message's wording ""Latin letters only"" (REQ-OPC-008 AC-5)."
+TC-52857-013,52857,Add Operating Country,,Remarks accept 250 characters and reject 251,[NBO][Company][Add Operating Country] Verify Remarks accept 250 characters and show the 250-character message for 251 characters,NBO,Company,Add Operating Country,Boundary · Validation · UI,"REQ-OPC-018 AC-2, AC-3, AC-4",D-01,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- 250 characters: `R` × 250 · 251 characters: `R` × 251
+- Free text with digits and symbols: `Ok 123 #$% (test)`","1. Log in as `ADMIN_ALL` and open the Add form
+2. Type 250 characters in Remarks and press Tab
+3. Add one character (251) and press Tab
+4. Replace with `Ok 123 #$% (test)` and press Tab
+5. Click Cancel","1. The form opens
+2. Not flagged invalid; the counter reads *250 / 250*
+3. Flagged with *""Remarks must not exceed 250 characters.""*; the counter reads *251 / 250*
+4. Not flagged invalid — no character rule applies to Remarks (REQ-OPC-018 AC-3)
+5. Nothing is created",
+TC-52857-014,52857,Add Operating Country,,All-permission user creates an Operating Country that is immediately Approved and Active,[NBO][Company][Add Operating Country] Verify a new Operating Country is Approved and Active at the top of the list when an all-permission user approves it on creation,NBO,Company,Add Operating Country,Positive · State · UI,"REQ-OPC-003 AC-1, AC-4, AC-6; REQ-OPC-004 AC-2; REQ-OPC-021 AC-1; REQ-OPC-023 AC-1; REQ-OPC-043 AC-3; REQ-OPC-046 AC-1",D-06,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- Name: RUN-NAME · Country: Egypt · Currency: Egyptian Pound · Remarks: `Created by QA`","1. Log in as `ADMIN_ALL` and open the Add form
+2. Enter RUN-NAME, select Egypt and Egyptian Pound, enter the remarks
+3. Click **Approve**
+4. Look at the default list (Active filter, page 1)","1. The form opens
+2. No field is flagged invalid
+3. A success confirmation is displayed — record its exact text — and the user is returned to the Operating Country list
+4. RUN-NAME is the **first** row, with Country Egypt, Currency Egyptian Pound, Approval Status **Approved**, Status **Active**","- **Leaves behind:** one *Approved / Active* record named RUN-NAME. Clean up by deactivating it as
+  `ADMIN_ALL`.
+- The specification's text is *""Operating Country Created Successfully.""* (REQ-OPC-042 AC-1). Every
+  message observed on STG differed from the specification and D-01 prefers the implementation, so
+  step 3 records the text instead of asserting it.
+- Egypt / Egyptian Pound is a valid pair: STG accepted it on 2026-10-10."
+TC-52857-015,52857,Add Operating Country,,Maker's new Operating Country is Pending for Approval and Inactive,[NBO][Company][Add Operating Country] Verify a Maker's new Operating Country is Pending for Approval and Inactive and appears only under the Inactive filter,NBO,Company,Add Operating Country,Positive · State · UI,"REQ-OPC-003 AC-1, AC-7; REQ-OPC-004 AC-1, AC-3; REQ-OPC-025 AC-1, AC-2; REQ-OPC-043 AC-3","D-01, D-02",,Approved,Yes,#NAME?,"- Account handle: `OPERATING_COUNTRIES_MAKER`
+- Name: RUN-NAME · Country: Egypt · Currency: Egyptian Pound · Remarks: `Please approve`","1. Log in as `OPERATING_COUNTRIES_MAKER`, open the Add form and fill in every field
+2. Click **Send For Approval**, then confirm **Send For Approval** in the dialog
+3. Search the default (Active) list by name RUN-NAME
+4. Select the **Inactive** filter and search by RUN-NAME","1. No field is flagged invalid
+2. A dialog *""Submit this operating country for approval?""* asks for confirmation; after confirming, a success confirmation is displayed — record its exact text — and the list is shown
+3. RUN-NAME is **not** listed
+4. RUN-NAME is listed with Approval Status **Pending for Approval** (record the exact label) and Status **Inactive**","- **Leaves behind:** one *Pending / Inactive* record. It cannot be deleted; it does not appear in
+  selection lists.
+- Observed on STG 2026-10-10 while creating test data: the confirmation dialog, and the toast
+  *""Operating Country sent for approval successfully""*. Recorded, not yet asserted."
+TC-52857-016,52857,Add Operating Country,,Trailing space is removed from the saved name,[NBO][Company][Add Operating Country] Verify the saved name has its trailing space removed when the name is entered with a trailing space,NBO,Company,Add Operating Country,Validation · UI,REQ-OPC-009 AC-1; REQ-OPC-003 AC-5; story Creation AC-6,—,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- Name: RUN-NAME followed by one space · Country: Egypt · Currency: Egyptian Pound · Remarks: `Trim check`","1. Log in as `ADMIN_ALL`, open the Add form, enter RUN-NAME with a trailing space and the other fields
+2. Click Approve
+3. Open the new record's Edit form and read the Name value and its character counter
+4. Click Cancel","1. The name is not flagged invalid
+2. The record is created and the list is shown
+3. The name equals RUN-NAME with no trailing space; the counter equals the length of RUN-NAME
+4. Nothing changes",- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards as `ADMIN_ALL`.
+TC-52857-017,52857,Add Operating Country,,"Duplicate name, in any letter case, is refused on create",[NBO][Company][Add Operating Country] Verify creation is refused when the name matches an existing Operating Country exactly or in different letter case,NBO,Company,Add Operating Country,Negative · Validation · UI,"REQ-OPC-010 AC-1, AC-2, AC-5; REQ-OPC-041 AC-2","D-01, D-12",,Approved,Yes,- A record named RUN-NAME exists. Create it in step 1.,"- Account handle: `ADMIN_ALL`
+- RUN-NAME; the same name in lower case","1. Log in as `ADMIN_ALL` and create RUN-NAME (Egypt, Egyptian Pound, remarks) with Approve
+2. Open the Add form, type RUN-NAME exactly, and press Tab
+3. Complete Country, Currency and Remarks and click Approve
+4. Change the name to RUN-NAME in lower case and click Approve
+5. Click Cancel and search the list for RUN-NAME (Both filter)","1. RUN-NAME is created
+2. No duplicate message is shown on leaving the field (D-01)
+3. The save is refused; the form stays open and the message *""Operating Country Already Exists.""* is shown (D-12)
+4. The save is refused and the message *""Operating Country Already Exists.""* is shown (D-12)
+5. Exactly **one** record named RUN-NAME exists","- The duplicate message is confirmed by the human (D-12, closes OQ-07).
+- The specification asks for a duplicate check when leaving the field (REQ-OPC-041 AC-2). The
+  implementation has none, and D-01 makes that expected (analysis C-08).
+- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards."
+TC-52857-018,52857,Add Operating Country,,A name held by a Pending record cannot be reused,[NBO][Company][Add Operating Country] Verify a name already held by a Pending for Approval record is refused when another record is created with it,NBO,Company,Add Operating Country,Negative · State · UI,REQ-OPC-010 AC-6,D-12,,Approved,Yes,- A *Pending* record named RUN-NAME exists. Create it in step 1.,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `ADMIN_ALL`
+- RUN-NAME","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME (Egypt, Egyptian Pound, remarks) with Send For Approval
+2. Log in as `ADMIN_ALL`, open the Add form, enter RUN-NAME with the other fields, and click Approve
+3. Search the list (Both filter) by RUN-NAME","1. RUN-NAME exists as *Pending / Inactive*
+2. The save is refused and the message *""Operating Country Already Exists.""* is shown (D-12)
+3. Exactly one record, still *Pending / Inactive*","- Uniqueness covers every approval and lifecycle state. Testing *Pending* is sufficient here:
+  rejecting or deactivating first would add steps without exercising a different comparison.
+- **Leaves behind:** one *Pending* record."
+TC-52857-019,52857,Add Operating Country,,Inactive Country and Currency are offered but refused on save,"[NBO][Company][Add Operating Country] Verify an inactive Country or Currency is listed on the Add form and creation with it is refused, recording the message",NBO,Company,Add Operating Country,Negative · Observation · UI,"REQ-OPC-002 AC-3, AC-6","D-01, D-08, D-11",,Approved,Yes,"- The inactive Country `OPC_COUNTRY_INACTIVE` and inactive Currency `OPC_CURRENCY_INACTIVE` are
+  configured (D-08). Before use, confirm in the Country and Currency masters that both are still
+  inactive; if either has become active the case is BLOCKED / `TEST_DATA_ISSUE`. Never change
+  their status.","- Account handle: `ADMIN_ALL`
+- `OPC_COUNTRY_INACTIVE`, `OPC_CURRENCY_INACTIVE`
+- Names: RUN-NAME, RUN-NAME-2","1. Log in as `ADMIN_ALL`, open the Add form and open the Country list
+2. Enter RUN-NAME, select the inactive Country, Egyptian Pound and remarks, then click Approve
+3. Enter RUN-NAME-2, select Egypt, the inactive Currency and remarks, then click Approve
+4. Search the list (Both filter) for RUN-NAME and RUN-NAME-2","1. The inactive Country is listed (the Add-form lists are unfiltered — D-01)
+2. The record is **not** created and the message *""The selected country is not active.""* is shown (D-11)
+3. The record is **not** created and an error is shown — record its exact text
+4. Neither exists","- The inactive-country message is confirmed by the human (D-11). The message for an inactive
+  **currency** (step 3) is not decided — it is recorded, not asserted (OQ-06 stays open for it).
+- Verified 2026-10-10 (read-only): both supplied records are Inactive **and Rejected**. A
+  country that is Approved but Inactive was not available; if its behaviour matters, that needs
+  other test data.
+- The specification wants inactive entries hidden from the Add form (REQ-OPC-002 AC-3, AC-6).
+  The UI lists them, the API documents a 409 refusal, and D-01 makes that combination expected
+  (analysis C-11, BR-18).
+- If a record **is** created, record it and report FAIL: the server is documented to refuse it.
+  Deactivate it afterwards."
+TC-52857-020,52857,Add Operating Country,,Currency list ignores the chosen Country; an unmapped pair's outcome is recorded,[NBO][Company][Add Operating Country] Observe the result when a Currency not belonging to the chosen Country is selected and Approve is clicked,NBO,Company,Add Operating Country,Observation · UI,REQ-OPC-001 AC-4,D-06,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- Name: RUN-NAME · Country: Egypt · Currency: Kuwaiti Dinar · Remarks: `Mapping check`","1. Log in as `ADMIN_ALL`, open the Add form, select Country **Egypt** and open the Currency list
+2. Enter RUN-NAME, select Kuwaiti Dinar and the remarks, then click Approve
+3. If it was created, search the list for RUN-NAME and record its Country and Currency","1. The list is **not** narrowed to Egypt — currencies such as Kuwaiti Dinar are offered (D-06, observed behaviour)
+2. **Observation only:** record whether the record is created or refused, and the exact message shown
+3. Recorded","- Observation-only for step 2: per D-06 the implementation decides, and which pairs the server
+  treats as mapped is unknown. The API documents a 409 for an unmapped pair. This case fails only
+  if no response or a crash occurs.
+- Records the answer to the still-open part of **OQ-06** (the unmapped-pair message). D-11 decided
+  only the inactive-country message.
+- Egypt / Egyptian Pound is a valid pair: STG accepted it for four records on 2026-10-10.
+- **May leave behind** one *Approved / Active* record with an unusual pair; deactivate it if created."
+TC-52857-021,52857,Add Operating Country,,Cancelling the Add form creates nothing,[NBO][Company][Add Operating Country] Verify no Operating Country is created when a filled Add form is cancelled,NBO,Company,Add Operating Country,Negative · UI,REQ-OPC-046 AC-3,—,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- Name: RUN-NAME · Egypt · Egyptian Pound · Remarks: `Cancel check`","1. Log in as `ADMIN_ALL`, open the Add form and fill in every field
+2. Click **Cancel** (confirm leaving if asked)
+3. Search the list (Both filter) by RUN-NAME","1. No field is flagged invalid
+2. The Operating Country list is shown
+3. No record named RUN-NAME exists",
+TC-52857-022,52857,Edit Operating Country,,Edit form shows current values with Country and Currency locked,"[NBO][Company][Edit Operating Country] Verify the Edit form pre-fills name and remarks, locks Country and Currency, and offers Cancel, Approve and Reject to an all-permission user",NBO,Company,Edit Operating Country,Positive · UI,"REQ-OPC-014 AC-1, AC-4; REQ-OPC-015 AC-1; REQ-OPC-046 AC-2",D-01,,Approved,Yes,- Any *Approved / Active* record exists (read-only case — nothing is saved).,- Account handle: `ADMIN_ALL`,"1. Log in as `ADMIN_ALL` and click **Edit** on an *Approved / Active* row
+2. Compare Name, Country and Currency with the row
+3. Try to open the Country and Currency dropdowns
+4. Inspect Remarks
+5. Inspect the actions
+6. Click Cancel","1. The *Edit Operating Country* form opens
+2. All three match the row
+3. Both are disabled and cannot be changed
+4. Pre-filled with the stored remarks and editable
+5. Exactly **Cancel**, **Approve** and **Reject** — no plain Update
+6. The list is shown; nothing changed",
+TC-52857-023,52857,Edit Operating Country,,Maker renames an Approved record and it stays Approved and Active,[NBO][Company][Edit Operating Country] Verify an Approved Operating Country stays Approved and Active when a Maker renames it and clicks Update,NBO,Company,Edit Operating Country,Positive · State · UI,"REQ-OPC-016 AC-1, AC-4, AC-5; REQ-OPC-017 AC-1, AC-4; REQ-OPC-039 AC-4",D-02,,Approved,Yes,- An *Approved / Active* record created by this case (step 1).,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME (created), RUN-NAME-2 (new name)","1. As `ADMIN_ALL`, create RUN-NAME (Egypt, Egyptian Pound, remarks) with Approve
+2. Log in as `OPERATING_COUNTRIES_MAKER` and open RUN-NAME's Edit form
+3. Change the name to RUN-NAME-2, keep the remarks, and click Update
+4. Find RUN-NAME-2 in the default (Active) list","1. RUN-NAME is *Approved / Active*
+2. The actions are exactly **Cancel** and **Update**
+3. A success confirmation is displayed — record its exact text — and the list is shown
+4. Approval Status **Approved**, Status **Active**; it is the first row","- **Leaves behind:** one *Approved / Active* record RUN-NAME-2; the name RUN-NAME stays consumed.
+  Deactivate RUN-NAME-2 afterwards."
+TC-52857-024,52857,Edit Operating Country,,Saving without changing the name raises no duplicate error,[NBO][Company][Edit Operating Country] Verify no duplicate error appears when a Maker updates only the Remarks and keeps the existing name,NBO,Company,Edit Operating Country,Positive · Validation · UI,"REQ-OPC-011 AC-1, AC-3; REQ-OPC-018 AC-6",—,,Approved,Yes,#NAME?,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME · new remarks: `Remarks updated by QA`","1. As `ADMIN_ALL`, create RUN-NAME with Approve
+2. As `OPERATING_COUNTRIES_MAKER`, open its Edit form, replace the remarks, leave the name unchanged, and click Update
+3. Reopen the Edit form","1. Created, *Approved / Active*
+2. The update is saved with no duplicate-name error; the list is shown
+3. Name is unchanged; Remarks show `Remarks updated by QA` in full",- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards.
+TC-52857-025,52857,Edit Operating Country,,Renaming to another record's name is refused,[NBO][Company][Edit Operating Country] Verify an update is refused when a Maker renames a record to another Operating Country's name in different letter case,NBO,Company,Edit Operating Country,Negative · Validation · UI,"REQ-OPC-010 AC-2; REQ-OPC-011 AC-2, AC-7; story Validation AC-4","D-01, D-12",,Approved,Yes,#NAME?,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME, RUN-NAME-2","1. As `ADMIN_ALL`, create RUN-NAME and RUN-NAME-2, both with Approve
+2. As `OPERATING_COUNTRIES_MAKER`, open RUN-NAME-2's Edit form, change the name to RUN-NAME in upper case, and click Update
+3. Click Cancel and search for RUN-NAME-2","1. Both exist
+2. The update is refused; the form stays open and the message *""Operating Country Already Exists.""* is shown (D-12)
+3. It still exists under its original name","- The duplicate message is confirmed by the human (D-12, closes OQ-07). The legacy defect
+  (duplicate saved through Edit — REQ-OPC-011 AC-4) is exactly what this case guards against.
+- **Leaves behind:** two *Approved / Active* records; deactivate both afterwards."
+TC-52857-026,52857,Edit Operating Country,,Name validation applies on the Edit form,"[NBO][Company][Edit Operating Country] Verify the Edit form flags an empty, too-short or invalid-character name with the same messages as the Add form",NBO,Company,Edit Operating Country,Negative · Validation · UI,REQ-OPC-016 AC-3; story Editing AC-6,D-01,,Approved,Yes,- Any *Approved / Active* record (nothing is saved).,"- Account handle: `OPERATING_COUNTRIES_MAKER`
+- Empty, `Ab`, `Abc1`","1. Log in as `OPERATING_COUNTRIES_MAKER` and open the Edit form of an *Approved / Active* record
+2. Clear the name and press Tab
+3. Enter `Ab`, press Tab
+4. Enter `Abc1`, press Tab
+5. Click Cancel","1. The form opens
+2. Flagged with *""Operating Country Name is required.""*
+3. Flagged with *""Operating Country Name must be between 3 and 100 characters.""*
+4. Flagged with *""Operating Country Name may contain Latin letters only, joined by single spaces, apostrophes, hyphens or underscores.""*
+5. Nothing is saved; the record is unchanged","- The texts were observed on the Add form; that the Edit form shares them is assumed from
+  REQ-OPC-016 AC-3. A different but appropriate message on Edit is recorded, not failed."
+TC-52857-027,52857,Edit Operating Country,,Maker's update of a Pending record keeps it Pending,[NBO][Company][Edit Operating Country] Verify a Pending for Approval record stays Pending and Inactive when a Maker updates it,NBO,Company,Edit Operating Country,Positive · State · UI,"REQ-OPC-016 AC-7; REQ-OPC-017 AC-1, AC-4; REQ-OPC-039 AC-1",D-02,,Approved,Yes,#NAME?,"- Account handle: `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME, RUN-NAME-2","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. Open RUN-NAME's Edit form (Inactive filter)
+3. Rename to RUN-NAME-2 and save with the update action
+4. Search the Inactive list for RUN-NAME-2","1. *Pending / Inactive*
+2. The form offers an update action and **no** Approve or Reject. Record the action names shown
+3. A success confirmation is displayed; the list is shown
+4. Approval Status still *Pending for Approval*; Status **Inactive**",- **Leaves behind:** one *Pending* record.
+TC-52857-028,52857,Edit Operating Country,,Maker's update of a Rejected record resubmits it as Pending,[NBO][Company][Edit Operating Country] Verify a Rejected record returns to Pending for Approval and stays Inactive when a Maker amends it and sends it for approval,NBO,Company,Edit Operating Country,Positive · State · UI,REQ-OPC-016 AC-6; REQ-OPC-017 AC-4; REQ-OPC-025 AC-4; REQ-OPC-039 AC-1,"D-02, D-03",,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME, RUN-NAME-2 · Reject remarks: `Rejected by QA`","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, reject RUN-NAME from the list, giving the reject remarks
+3. As `OPERATING_COUNTRIES_MAKER`, open RUN-NAME's Edit form
+4. Rename to RUN-NAME-2 and click Send For Approval
+5. Search the Inactive list for RUN-NAME-2","1. *Pending / Inactive*
+2. *Rejected / Inactive*
+3. The only save action is **Send For Approval** (REQ-OPC-039 AC-1); no Approve or Reject
+4. A success confirmation is displayed
+5. Approval Status *Pending for Approval*; Status **Inactive**","- The Maker's actions on a *Rejected* record were not observed. Step 3 follows the specification
+  matrix, which no decision overrides.
+- **Leaves behind:** one *Pending* record.
+- **Flagged for human review (2026-10-10):** step 3 still depends on the specification matrix for a
+  Maker on a *Rejected* record, which has not been observed on STG."
+TC-52857-029,52857,Edit Operating Country,,Cancelling an edit leaves the record unchanged,[NBO][Company][Edit Operating Country] Verify name and remarks stay unchanged when a Maker edits them and clicks Cancel,NBO,Company,Edit Operating Country,Negative · UI,REQ-OPC-016 AC-5; REQ-OPC-017 AC-1 (Cancel),—,,Approved,Yes,#NAME?,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME, RUN-NAME-2","1. As `ADMIN_ALL`, create RUN-NAME with Approve and remarks `Original`
+2. As `OPERATING_COUNTRIES_MAKER`, open its Edit form, change the name to RUN-NAME-2 and the remarks to `Changed`
+3. Click **Cancel** (confirm leaving if asked)
+4. Reopen RUN-NAME's Edit form","1. Created
+2. Fields show the new values
+3. The list is shown
+4. Name RUN-NAME, remarks `Original`, still *Approved / Active*",- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards.
+TC-52857-030,52857,Operating Country Approval,,Approver approves a Pending record from the list,[NBO][Company][Operating Country Approval] Verify a Pending record becomes Approved and Active when an Approver approves it from the list with remarks,NBO,Company,Operating Country Approval,Positive · State · UI,REQ-OPC-025 AC-1; REQ-OPC-026 AC-1; REQ-OPC-027 AC-1; REQ-OPC-030 AC-1,D-03,,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME · Approval remarks: `Approved by QA`","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, find RUN-NAME (Inactive filter) and inspect its actions
+3. Click **Approve**
+4. Enter the remarks and confirm
+5. Search the default (Active) list for RUN-NAME","1. *Pending / Inactive*
+2. **Approve** and **Reject** are offered; no Edit
+3. A dialog asking for remarks is shown — record its title, fields and buttons
+4. A success confirmation is displayed — record its exact text
+5. Approval Status **Approved**, Status **Active**","- Answers **OQ-10** for the approve dialog. The specification's confirmation is *""Operating Country
+  Approved Successfully.""* (REQ-OPC-026 AC-1); step 4 records the actual text.
+- The record reached this Approver without being assigned to anyone (REQ-OPC-025 AC-1).
+- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards."
+TC-52857-031,52857,Operating Country Approval,,Approver rejects a Pending record from the list,[NBO][Company][Operating Country Approval] Verify a Pending record becomes Rejected and Inactive when an Approver rejects it from the list with remarks,NBO,Company,Operating Country Approval,Positive · State · UI,REQ-OPC-026 AC-2; REQ-OPC-030 AC-2,"D-03, D-05",,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME · Reject remarks: `Rejected by QA`","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, click **Reject** on RUN-NAME
+3. Enter the remarks and confirm
+4. Search the Inactive list for RUN-NAME
+5. Search the default (Active) list for RUN-NAME","1. *Pending / Inactive*
+2. A reject dialog is shown — record its title, fields and buttons, and whether Remarks is marked required
+3. A success confirmation is displayed — record its exact text
+4. Approval Status **Rejected**, Status **Inactive**
+5. Not listed","- Remarks are supplied, so this case holds whichever remarks rule applies (D-05). The no-remarks
+  path is TC-52857-032.
+- **Leaves behind:** one *Rejected* record."
+TC-52857-032,52857,Operating Country Approval,,Rejecting without remarks: the UI outcome is recorded,[NBO][Company][Operating Country Approval] Observe whether a Pending record can be rejected from the list when the Remarks field is left empty,NBO,Company,Operating Country Approval,Observation · UI,REQ-OPC-027 AC-2,D-05,,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME · Remarks left empty","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, click **Reject** on RUN-NAME, leave Remarks empty, and confirm
+3. Search the list (Both filter) for RUN-NAME","1. *Pending / Inactive*
+2. **Observation only:** record whether the rejection is blocked (and the exact message) or recorded
+3. Record its Approval Status and Status","- **Nothing is asserted about the outcome.** D-05 makes the implementation the source of truth,
+  and the implementation is split: `PATCH …/approval-status` requires remarks, `PUT …/{id}` with
+  reject does not. The list dialog has not been seen, so its rule is unknown. Fails only on a crash
+  or no response.
+- **Leaves behind:** one *Pending* or *Rejected* record."
+TC-52857-033,52857,Operating Country Approval,,Approval without remarks or with over-long remarks is blocked,[NBO][Company][Operating Country Approval] Verify an Approver cannot approve a Pending record when Remarks are empty or longer than 250 characters,NBO,Company,Operating Country Approval,Negative · Validation · UI,"REQ-OPC-027 AC-2, AC-5; REQ-OPC-018 AC-1, AC-2",D-01,,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME · Remarks: empty, then `R` × 251","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, click **Approve** on RUN-NAME, leave Remarks empty, and confirm
+3. Enter 251 characters in Remarks and confirm
+4. Cancel the dialog and search the Inactive list for RUN-NAME","1. *Pending / Inactive*
+2. The approval is not recorded; validation feedback is shown for Remarks — record its exact text
+3. The approval is not recorded; validation feedback is shown — record its exact text
+4. Still *Pending for Approval / Inactive*","- Approval remarks are mandatory in every source (specification, both API routes), so this is
+  asserted. Only the wording is recorded: the dialog was not observed (OQ-10).
+- **Leaves behind:** one *Pending* record."
+TC-52857-034,52857,Operating Country Approval,,Cancelling a decision leaves the record unchanged,"[NBO][Company][Operating Country Approval] Verify a Pending record stays Pending when an Approver opens the Approve dialog, enters remarks and cancels",NBO,Company,Operating Country Approval,Negative · UI,REQ-OPC-026 AC-5; REQ-OPC-027 AC-4; REQ-OPC-046 AC-3,—,,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME · Remarks: `Will be cancelled`","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, click **Approve** on RUN-NAME, enter the remarks, then cancel the dialog
+3. Search the Inactive list for RUN-NAME","1. *Pending / Inactive*
+2. The dialog closes; no confirmation is shown
+3. Still *Pending for Approval / Inactive*",- **Leaves behind:** one *Pending* record.
+TC-52857-035,52857,Operating Country Approval,,Maker is never offered Approve or Reject on a Pending record,[NBO][Company][Operating Country Approval] Verify a Maker sees no Approve or Reject on a Pending record in the list or on its Edit form,NBO,Company,Operating Country Approval,Negative · Security · UI,REQ-OPC-039 AC-3; REQ-OPC-046 AC-8; story Access Control AC-7,D-02,,Approved,Yes,#NAME?,"- Account handle: `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. Find RUN-NAME in the Inactive list and inspect its row actions
+3. Open RUN-NAME's Edit form and inspect its actions","1. *Pending / Inactive*
+2. No Approve and no Reject. Record the actions that are offered
+3. No Approve and no Reject","- The Maker's row actions on a *Pending* record were not observed. Only the absence of decision
+  actions is asserted (D-02).
+- **Leaves behind:** one *Pending* record."
+TC-52857-036,52857,Operating Country Approval,,All-permission user approves a Pending record from its Edit form,[NBO][Company][Operating Country Approval] Verify a Pending record becomes Approved and Active when an all-permission user approves it from the Edit form,NBO,Company,Operating Country Approval,Positive · State · UI,"REQ-OPC-046 AC-2 (Pending), AC-5; REQ-OPC-016 AC-8",—,,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `ADMIN_ALL`
+- RUN-NAME · Remarks: `Approved in edit`","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `ADMIN_ALL`, open RUN-NAME's Edit form
+3. Replace the remarks and click **Approve**
+4. Search the default (Active) list for RUN-NAME","1. *Pending / Inactive*
+2. The actions are **Approve** and **Reject** (and Cancel); no Send For Approval
+3. A success confirmation is displayed — record its exact text
+4. **Approved / Active**",- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards.
+TC-52857-037,52857,Operating Country Approval,,A Rejected record's Edit form offers Approve and Reject to an all-permission user,"[NBO][Company][Operating Country Approval] Verify a Rejected record's Edit form offers Cancel, Approve and Reject to an all-permission user and approving it makes it Approved and Active",NBO,Company,Operating Country Approval,Positive · State · UI,REQ-OPC-046 AC-2 (Rejected); REQ-OPC-026 AC-4; REQ-OPC-039 AC-1,"D-03, D-19",,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`, `ADMIN_ALL`
+- RUN-NAME · Reject remarks `Rejected by QA` · Approve remarks `Re-approved by QA`","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, reject RUN-NAME with the reject remarks
+3. As `ADMIN_ALL`, open RUN-NAME's Edit form
+4. Check the Remarks field
+5. Replace the remarks and click Approve
+6. Search the default list for RUN-NAME","1. *Pending / Inactive*
+2. *Rejected / Inactive*
+3. The actions are exactly **Cancel**, **Approve** and **Reject** (D-19)
+4. Pre-filled with `Rejected by QA` (REQ-OPC-018 AC-5)
+5. A success confirmation is displayed
+6. **Approved / Active**","- **D-19** (human, 2026-10-10) replaces the specification's *Approve / Cancel* for a *Rejected*
+  record (REQ-OPC-046 AC-2): the all-permission Edit form also offers **Reject**. What Reject does
+  on an already *Rejected* record is not decided and not asserted.
+- RUN-001 recorded step 3 as FAIL against the earlier expectation (exactly Approve and Cancel);
+  its Bug Candidate BUG-002 was resolved by the human as **not a bug**.
+- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards."
+TC-52857-038,52857,Operating Country Approval,,All-permission user rejects an Approved record,[NBO][Company][Operating Country Approval] Verify an Approved record becomes Rejected and Inactive and leaves the default list when an all-permission user rejects it,NBO,Company,Operating Country Approval,Positive · State · UI,"REQ-OPC-026 AC-2, AC-4; REQ-OPC-046 AC-2 (Approved)",D-05,,Approved,Yes,#NAME?,"- Account handle: `ADMIN_ALL`
+- RUN-NAME · Reject remarks: `Withdrawn by QA`","1. As `ADMIN_ALL`, create RUN-NAME with Approve
+2. Click **Reject** on RUN-NAME's row, enter the remarks, and confirm
+3. Search the default (Active) list for RUN-NAME
+4. Search the Inactive list for RUN-NAME","1. *Approved / Active*
+2. A success confirmation is displayed — record its exact text
+3. Not listed
+4. **Rejected / Inactive**",- **Leaves behind:** one *Rejected* record — already out of every selection list; no cleanup needed.
+TC-52857-039,52857,Operating Country Status,,"Approver deactivates after confirming, then reactivates",[NBO][Company][Operating Country Status] Verify an Approver's confirmed deactivation makes the record Inactive and a confirmed Activate restores it to Active,NBO,Company,Operating Country Status,Positive · State · UI,"REQ-OPC-030 AC-4, AC-5, AC-7, AC-8, AC-9, AC-10; story Lifecycle AC-3…AC-5","D-02, D-18",,Approved,Yes,#NAME?,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME","1. As `ADMIN_ALL`, create RUN-NAME with Approve
+2. As `OPERATING_COUNTRIES_APPROVER`, click **Deactivate** on RUN-NAME
+3. Confirm
+4. Search the default (Active) list for RUN-NAME
+5. Search the Inactive list for RUN-NAME
+6. Click **Activate**, then confirm the activation
+7. Search the default list for RUN-NAME","1. *Approved / Active*
+2. A confirmation is requested before anything changes — record the full warning text
+3. A result message is shown — record its text
+4. Not listed
+5. Approval Status **Approved**, Status **Inactive**; an **Activate** action is offered
+6. A confirmation is requested before anything changes (D-18); once it is confirmed, the record becomes Active
+7. **Approved / Active**","- Answers **OQ-10** for the deactivation warning. REQ-OPC-030 AC-8 describes its content; its
+  wording is recorded, not asserted.
+- **D-18** (human, 2026-10-10) replaces the specification's *activation needs no confirmation*
+  (REQ-OPC-030 AC-10): Activate asks for a confirmation, like Deactivate.
+- RUN-001 recorded step 6 as FAIL against the earlier expectation (no confirmation); its Bug
+  Candidate BUG-001 was resolved by the human as **not a bug**.
+- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards."
+TC-52857-040,52857,Operating Country Status,,Maker deactivates and reactivates an Approved record,[NBO][Company][Operating Country Status] Verify a Maker can deactivate an Approved record to Inactive and activate it back to Active,NBO,Company,Operating Country Status,Positive · State · Security · UI,REQ-OPC-030 AC-4,D-02,,Approved,Yes,#NAME?,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_MAKER`
+- RUN-NAME","1. As `ADMIN_ALL`, create RUN-NAME with Approve
+2. As `OPERATING_COUNTRIES_MAKER`, click **Deactivate** on RUN-NAME and confirm
+3. Search the Inactive list for RUN-NAME
+4. Click **Activate**
+5. Search the default list for RUN-NAME","1. *Approved / Active*
+2. The deactivation succeeds — no permission error
+3. **Approved / Inactive**; **Activate** is offered to the Maker
+4. The activation succeeds
+5. **Approved / Active**","- **D-02 overrides** REQ-OPC-030 AC-5/AC-6 and the Swagger for `PATCH …/status`, both of which
+  reserve this action for approval authority. A server refusal here is a FAIL against D-02.
+- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards."
+TC-52857-041,52857,Operating Country Status,,Cancelling the deactivation confirmation changes nothing,[NBO][Company][Operating Country Status] Verify an Approved record stays Active when Deactivate is clicked and the confirmation is cancelled,NBO,Company,Operating Country Status,Negative · UI,REQ-OPC-030 AC-9; story Lifecycle AC-5,—,,Approved,Yes,#NAME?,"- Accounts: `ADMIN_ALL` (setup), `OPERATING_COUNTRIES_APPROVER`
+- RUN-NAME","1. As `ADMIN_ALL`, create RUN-NAME with Approve
+2. As `OPERATING_COUNTRIES_APPROVER`, click **Deactivate** on RUN-NAME, then cancel the confirmation
+3. Search the default list for RUN-NAME","1. *Approved / Active*
+2. The confirmation closes
+3. Still **Approved / Active**",- **Leaves behind:** one *Approved / Active* record; deactivate it afterwards.
+TC-52857-042,52857,Operating Country Status,,Activate is not offered on Pending or Rejected records,[NBO][Company][Operating Country Status] Verify no Activate action is offered on a Pending or a Rejected record to any role,NBO,Company,Operating Country Status,Negative · State · UI,"REQ-OPC-030 AC-5, AC-6; story Lifecycle AC-2",D-02,,Approved,Yes,#NAME?,"- Accounts: `OPERATING_COUNTRIES_MAKER`, `OPERATING_COUNTRIES_APPROVER`, `ADMIN_ALL`
+- RUN-NAME (stays Pending), RUN-NAME-2 (rejected)","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME and RUN-NAME-2 with Send For Approval
+2. As `OPERATING_COUNTRIES_APPROVER`, reject RUN-NAME-2 with remarks
+3. In the Inactive list, inspect both rows as `OPERATING_COUNTRIES_APPROVER`
+4. Repeat as `OPERATING_COUNTRIES_MAKER` and as `ADMIN_ALL`","1. Both *Pending / Inactive*
+2. RUN-NAME-2 *Rejected / Inactive*
+3. Neither row offers **Activate**
+4. Neither row offers **Activate** to either role","- Only *Approved* records may be activated, whoever acts (REQ-OPC-030 AC-5; D-02 widens *who*, not
+  *which records*). The API documents a 409 for activating a non-approved record.
+- **Leaves behind:** one *Pending* and one *Rejected* record."
+TC-52857-043,52857,Operating Country List,,List page heading and column labels,"[NBO][Company][Operating Country List] Verify the list page shows the Operating Country heading and the Name, Country, Currency, Approval Status, Status and Actions columns",NBO,Company,Operating Country List,Positive · UI,"REQ-OPC-019 AC-1, AC-4; REQ-OPC-045",D-01,,Approved,Yes,#NAME?,- Account handle: `ADMIN_ALL`,"1. Log in as `ADMIN_ALL` and open the list page
+2. Read the column headings
+3. Read the filter labels","1. The page heading reads **Operating Country**
+2. **Name**, **Country**, **Currency**, **Approval Status**, **Status**, **Actions**
+3. **Operating Country Name**, **Country**, and the Active / Inactive / Both toggle","- D-01 replaces the specification's ""Operating Country (POS)"" labels with the implementation's
+  wording (analysis C-01, C-02)."
+TC-52857-044,52857,Operating Country List,,"Default list shows Active records, 10 per page, newest first, with totals","[NBO][Company][Operating Country List] Verify the list opens on Active records, 10 rows per page, page 1, ordered by last change, with the record count shown",NBO,Company,Operating Country List,Positive · UI,"REQ-OPC-021 AC-1; REQ-OPC-022 AC-1, AC-4; REQ-OPC-023 AC-1; REQ-OPC-019 AC-3",D-01,,Approved,Yes,- None (read-only).,- Account handle: `ADMIN_ALL`,"1. Log in as `ADMIN_ALL` and open the list page
+2. Inspect the pagination area
+3. Open each record's Edit form in turn, or compare with a record just changed","1. The **Active** toggle is selected; every row's Status is **Active**
+2. Rows per page is **10**; page **1** is current; a *""Showing x to y of z""* summary and a record count are shown
+3. Rows are ordered most recently changed first. **Practical check:** the most recently created or changed record is the first row","- Ordering is checked end to end by TC-52857-014 (a new record lands at the top). Step 3 is the
+  read-only form of the same check."
+TC-52857-045,52857,Operating Country List,,Name search matches part of a name regardless of letter case,[NBO][Company][Operating Country List] Verify searching by part of a name in any letter case lists every Operating Country containing it,NBO,Company,Operating Country List,Positive · UI,REQ-OPC-020 AC-1; story Listing AC-2,—,,Approved,Yes,"- Records whose names contain ""gyp"" exist (STG: Egypt, EgyptWTNBO, Egypt_WT_NBO).","- Account handle: `ADMIN_ALL`
+- Search value: `GYP`","1. Log in as `ADMIN_ALL`, type `GYP` in the name filter and click Search
+2. Read the record count","1. Every Active record whose name contains ""gyp"" in any case is listed, and only those
+2. It equals the number of rows listed",
+TC-52857-046,52857,Operating Country List,,Underscore and percent in the search are matched literally,[NBO][Company][Operating Country List] Verify searching for an underscore or a percent sign returns only names that actually contain that character,NBO,Company,Operating Country List,Negative · Security · UI,REQ-OPC-020 AC-6,—,,Approved,Yes,"- At least one Active record name contains `_` (STG: Egypt_WT_NBO), and at least one does not.","- Account handle: `ADMIN_ALL`
+- Search values: `_` and `%`","1. Log in as `ADMIN_ALL`, search for `_`
+2. Search for `%`","1. Only names containing an underscore are listed
+2. Only names containing `%` are listed — none on STG today, so the ""no results"" state is shown","- If `_` or `%` acted as a wildcard, every record would be returned (the legacy defect, REQ-OPC-020 AC-6)."
+TC-52857-047,52857,Operating Country List,,Country filter lists only records bound to that Country,[NBO][Company][Operating Country List] Verify choosing a Country in the filter lists only the Operating Countries bound to that Country,NBO,Company,Operating Country List,Positive · UI,REQ-OPC-020 AC-2,—,,Approved,Yes,- Records bound to Egypt and to other countries exist (STG: yes).,"- Account handle: `ADMIN_ALL`
+- Country: Egypt","1. Log in as `ADMIN_ALL`, select **Egypt** in the Country filter and click Search
+2. Click Reset and Search","1. Every listed row shows Country **Egypt**
+2. Records bound to other countries are listed again",
+TC-52857-048,52857,Operating Country List,,Lifecycle filter shows Inactive and Both correctly,[NBO][Company][Operating Country List] Verify the Inactive filter lists only Inactive records and Both lists Active and Inactive records together,NBO,Company,Operating Country List,Positive · UI,REQ-OPC-020 AC-3,D-01,,Approved,Yes,- At least one Inactive record exists. Create one in step 1.,"- Account handle: `OPERATING_COUNTRIES_MAKER`, then `ADMIN_ALL`
+- RUN-NAME","1. As `OPERATING_COUNTRIES_MAKER`, create RUN-NAME with Send For Approval
+2. As `ADMIN_ALL`, select **Inactive** and click Search
+3. Select **Both** and click Search","1. A *Pending / Inactive* record exists
+2. Every listed row's Status is **Inactive**; RUN-NAME is included
+3. Active and Inactive rows are both listed; the count is at least the Active count plus one","- ""Both"" is an implementation option beyond REQ-OPC-020 AC-3; D-01 makes it expected.
+- **Leaves behind:** one *Pending* record."
+TC-52857-049,52857,Operating Country List,,A search with no matches shows the no-results message,[NBO][Company][Operating Country List] Verify the no-results message appears when the name search matches no Operating Country,NBO,Company,Operating Country List,Negative · UI,REQ-OPC-020 AC-4; REQ-OPC-042 AC-5,D-01,,Approved,Yes,- No record name contains `zzqx`.,"- Account handle: `ADMIN_ALL`
+- Search value: `zzqx`","1. Log in as `ADMIN_ALL`, type `zzqx` in the name filter and click Search","1. No rows; the message *""No operating countries match these filters""* is shown","- D-01 replaces the specification's *""No Operating Country found. Please try again.""* with the text
+  observed on STG (analysis C-09)."
+TC-52857-050,52857,Operating Country List,,The search Country filter offers active Countries only,[NBO][Company][Operating Country List] Verify an inactive Country is absent from the list page's Country filter while it is offered on the Add form,NBO,Company,Operating Country List,Positive · UI,REQ-OPC-020 AC-7,"D-01, D-08",,Approved,Yes,"- The inactive Country `OPC_COUNTRY_INACTIVE` is configured (D-08). Before use, confirm in the
+  Country master that it is still inactive; if it has become active the case is BLOCKED /
+  `TEST_DATA_ISSUE`. Never change its status.","- Account handle: `ADMIN_ALL`
+- `OPC_COUNTRY_INACTIVE`","1. Log in as `ADMIN_ALL`, open the list page's Country filter and type the inactive Country's name
+2. Open the Add form's Country list and type the same name
+3. Click Cancel","1. It is **not** offered
+2. It **is** offered (contrast — the Add form lists are unfiltered)
+3. Nothing is created","- D-01 reverses the specification, which wants the search list unrestricted with inactive entries
+  marked and the Add list active-only (analysis C-10, C-11)."
+TC-52857-051,52857,Operating Country List,,Pagination keeps the search criteria and continues the order across pages,[NBO][Company][Operating Country List] Verify moving to page 2 keeps the search criteria and continues the most-recent-first order from page 1,NBO,Company,Operating Country List,Positive · UI,"REQ-OPC-022 AC-1, AC-2, AC-4; REQ-OPC-023 AC-2, AC-3","D-09, D-16, D-17",,Approved,Yes,"- More than 10 records match the **Both** filter. On 2026-10-10 STG had 11, including four
+  *Pending / Inactive* records named `AUT Pagination Alpha`, `Bravo`, `Charlie`, `Delta` (D-09).
+- If fewer than 11 match: as `OPERATING_COUNTRIES_MAKER`, create the shortfall with Send For
+  Approval (Egypt / Egyptian Pound), each with a unique name containing `AUT` that no existing
+  record uses (D-17). Pending records never appear in selection lists. Records cannot be deleted.","- Account handle: `ADMIN_ALL`
+- Only if records must be created: `OPERATING_COUNTRIES_MAKER`, names `AUT Pagination <word>`","1. Log in as `ADMIN_ALL`, select **Both** and click Search
+2. Click **Next Page**
+3. Click **First Page**","1. Page 1 shows 10 rows; the summary shows the total and Next is enabled
+2. Page 2 is current; the **Both** filter is still applied; rows continue the order from page 1, with no row repeated
+3. Page 1 shows the same 10 rows as before","- Creates records only when fewer than 11 match, and then only the shortfall (D-09).
+- Need Automation stays `No` as recorded: the case still depends on the volume of shared data."

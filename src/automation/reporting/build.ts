@@ -11,6 +11,9 @@
  *   (`testCaseDetails`). Never inferred from a file name or title.
  * - Step actions, Expected Results, title, module: the Test Case artifact.
  * - Status, durations, errors, screenshots: Playwright.
+ * - Recorded observations: `observation` annotations a spec adds as
+ *   `Step N: <text>`, for steps whose Expected Result says "record …". They are
+ *   appended to that step's Actual — never an assertion, never a status.
  */
 
 import { isAbsolute, relative, resolve } from 'node:path';
@@ -124,6 +127,27 @@ export interface BuiltReport {
 
 const STEP_TITLE = /^Step (\d+):\s*(.*)$/;
 const NOT_APPLICABLE = '—';
+const OBSERVATION = /^Step (\d+):\s*([\s\S]*)$/;
+
+/** `observation` annotations by step number, sanitised. Malformed ones are ignored. */
+function observationsByStep(raw: RawTestResult): Map<number, string[]> {
+  const byStep = new Map<number, string[]>();
+  for (const entry of raw.annotations) {
+    if (entry.type !== 'observation' || !entry.description) continue;
+    const match = OBSERVATION.exec(entry.description.trim());
+    const text = match ? clean(match[2] ?? '') : '';
+    if (!match || !text) continue;
+    const index = Number(match[1]);
+    // Playwright reports a runtime annotation on both the test and its result.
+    const seen = byStep.get(index) ?? [];
+    if (!seen.includes(text)) byStep.set(index, [...seen, text]);
+  }
+  return byStep;
+}
+
+function withObservations(actual: string, recorded: readonly string[] | undefined): string {
+  return recorded && recorded.length > 0 ? `${actual} Recorded: ${recorded.join(' · ')}` : actual;
+}
 
 /** Every Playwright string enters the report through here. */
 function clean(text: string): string {
@@ -174,9 +198,28 @@ function annotation(raw: RawTestResult, type: string): string | null {
   return raw.annotations.find((entry) => entry.type === type)?.description?.trim() || null;
 }
 
+/** A worker that died before this test ran — the test never started. */
+const WORKER_GONE = /worker process exited unexpectedly|Test was interrupted/i;
+
+/**
+ * Why a test that did not complete was never really run, or null. An
+ * interrupted run (Ctrl+C, a stopped process) reports its remaining tests as
+ * `interrupted`, or as `failed` with "worker process exited unexpectedly" and
+ * no step executed — neither is a test result, so neither is a FAIL
+ * (US-52857 RUN-008 counted 23 such cases as FAIL).
+ */
+function neverRan(raw: RawTestResult): string | null {
+  if (raw.status === 'interrupted') return 'NOT RUN — the run was interrupted before this test completed.';
+  const started = raw.steps.some((step) => /^Step \d+:/.test(step.title));
+  if (raw.status === 'failed' && !started && raw.errors.length > 0 && raw.errors.every((error) => WORKER_GONE.test(error))) {
+    return 'NOT RUN — the test never started: its worker process exited (the run was stopped or crashed).';
+  }
+  return null;
+}
+
 function toStatus(status: RawTestResult['status']): ExecutionStatus {
   if (status === 'passed') return 'PASS';
-  if (status === 'skipped') return 'NOT RUN';
+  if (status === 'skipped' || status === 'interrupted') return 'NOT RUN';
   return 'FAIL';
 }
 
@@ -233,6 +276,7 @@ function buildSteps(
     if (match) executed.set(Number(match[1]), { ...step, action: clean(match[2] ?? '') });
   }
 
+  const recorded = observationsByStep(raw);
   const failed = [...executed.entries()].find(([, step]) => step.error !== null);
   const failedStep = failed ? failed[0] : null;
 
@@ -253,12 +297,12 @@ function buildSteps(
     if (!run) {
       rows.push({ ...step, status: 'NOT EXECUTED', actual: notExecuted, durationMs: null });
     } else if (run.error !== null) {
-      rows.push({ ...step, status: 'FAIL', actual: failedActual, durationMs: run.durationMs });
+      rows.push({ ...step, status: 'FAIL', actual: withObservations(failedActual, recorded.get(step.index)), durationMs: run.durationMs });
     } else {
       rows.push({
         ...step,
         status: 'PASS',
-        actual: 'Passed — every action and assertion in this step succeeded.',
+        actual: withObservations('Passed — every action and assertion in this step succeeded.', recorded.get(step.index)),
         durationMs: run.durationMs,
       });
     }
@@ -351,7 +395,8 @@ export function buildReport(input: BuildInput): BuiltReport {
     const adoText = annotation(raw, 'ado-id');
     const testCase = testCaseId && userStoryId !== null ? input.lookupTestCase(userStoryId, testCaseId) : null;
 
-    const status = toStatus(raw.status);
+    const notStarted = neverRan(raw);
+    const status = notStarted ? 'NOT RUN' : toStatus(raw.status);
     const baseName = testCaseId ?? `untraced-${position + 1}`;
     const { attachments, copies: own } = selectAttachments(raw, baseName, input.gate);
     copies.push(...own);
@@ -362,7 +407,7 @@ export function buildReport(input: BuildInput): BuiltReport {
 
     const reason =
       status === 'NOT RUN'
-        ? clean(annotation(raw, 'skip') ?? 'Skipped.')
+        ? (notStarted ?? clean(annotation(raw, 'skip') ?? 'Skipped.'))
         : testCaseId && !testCase
           ? `${testCaseId} was not found in the Test Case artifact of User Story ${userStoryId ?? '?'} — check the spec's annotations.`
           : !testCaseId

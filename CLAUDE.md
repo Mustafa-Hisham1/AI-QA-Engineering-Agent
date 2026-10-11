@@ -89,14 +89,14 @@ progress lives in `docs/projects/<KEY>/state.md`.
 | Post-create Bug verification | **Verified** — **12 checks**; Description, Repro Steps and System Info asserted non-empty **separately** | `npm run bug:publish -- <input.json> --verify-only <id>` |
 | Disjoint Bug field mapping | **Verified against real Azure DevOps** — read back and checked phrase by phrase | `docs/projects/<KEY>/executions/` |
 | Multi-project support (profiles + active project) | **Verified** — resolution, refusal-to-guess and path scoping under test | `npm test` |
-| Automated tests (parser, CSV codec + CSV-first store, Bug builders, active project, profile drift, regeneration, automation, reporting, analysis sources, session cleanup) | **Verified** — 311 tests (310 pass; `analysis-sources` 11b fails because the working tree has deleted `requirements/US-53717/requirement-analysis.md`) | `npm test` |
+| Automated tests (parser, CSV codec + CSV-first store, Bug builders, active project, profile drift, regeneration, automation, reporting, analysis sources, session cleanup) | **Verified** — 318 tests, 317 pass. The one failure, `analysis-sources` 11b, is **expected**: it reads `requirements/US-53717/requirement-analysis.md`, and that story was deliberately removed from the repository. The test is scheduled to be rewritten against a fixture instead of a live project artifact | `npm test` |
 | Optional analysis sources — API specification, UI exploration (`/analyze-story`) | **Preflight and API reader verified** by tests and against the real US-53717 analysis (backward compatible). **No analysis has yet used an API spec or explored the UI** — none supplied, and `.env` has no app environment | `npm run analysis:preflight -- <ID> --project <KEY>` |
 | Need Automation decision per Test Case (automation Phase 1) | **Verified** — parser and regeneration check by tests; Skill exercised by the US-52857 `/write-test-cases` run (52 cases, 47 Yes / 5 No) | `npm run testcases:check -- <ID> --project <KEY>` |
 | **CSV as the single source of truth for test cases** (`test-cases.csv` + rendered `test-cases.md`) | **Verified** — all 4 existing stories migrated losslessly (139 NBO cases + 4 synthetic); publisher `--verify` and dry run read the CSV against real Azure DevOps (read-only); automation scope and the HTML report read the CSV; contract under test | `npm run testcases:check -- <ID> --project <KEY>` |
-| Playwright framework (automation Phase 2) | **Verified against STG** — config, project resolution, discovery by `@TC` tag, environment guard, sub-module paths (§7.1.2), recorded observations in the report (§7.2). **51 specs exist** (NBO US-52857, `automation/NBO/Company/Operating-Country/`); 20 have passed once on STG | `npm run automation:list -- --project <KEY>` |
+| Playwright framework (automation Phase 2) | **Verified against STG** — config, project resolution, discovery by `@TC` tag, environment guard, sub-module paths (§7.1.2), recorded observations in the report (§7.2). **51 specs exist** (NBO US-52857, `automation/NBO/Company/Operating-Country/`); **all 51 passed on STG in RUN-040** (commit 75ec5dd), after six automation defects were fixed | `npm run automation:list -- --project <KEY>` |
 | Automation case selection | **Verified** by tests and against a real artifact (0 of 52 in scope, all undecided) | `npm run automation:scope -- <ID> --project <KEY>` |
 | Playwright artifact safety | **Verified** — found three leak paths of typed passwords and closed them (§7.1.1); the check now also scans the HTML report and Bug Candidates; passes | `npm run automation:verify-artifacts` |
-| Automation workflow | **Reusable skill, exercised once** — US-52857: plan approved, code for all 51 cases generated; first full run invalidated by abandoned sessions (see below) | `/automate-test-cases <ID>` |
+| Automation workflow | **Reusable skill, verified end to end** — US-52857: plan approved, code for all 51 cases generated, and all 51 passing on STG in RUN-040. An early full run was invalidated by abandoned sessions; session cleanup (§7.1.3) fixed it | `/automate-test-cases <ID>` |
 | Session cleanup after every automated test (§7.1.3) | **Verified on STG** — logout API with each session's own token and `allSessions: false`; every session in 9 cases (passing, failing, 2- and 3-account) answered HTTP 200 and its old token was then rejected (401); next login succeeded. 14 unit tests | `npm test` · `npm run automation:test -- --project <KEY> --grep @TC-<id>` |
 | HTML execution report (automation Phase 3) | **Verified end to end on the synthetic artifact-check project** (3 failures + 1 pass, 2 Bug Candidates, screenshots, a video for every test) and by tests. **Not yet produced by a real project run** — no spec exists | `npm run automation:report -- --project <KEY>` |
 | ADO Test Runs, CI for automation, publishing automation Bugs | Not built | — |
@@ -899,12 +899,19 @@ PROJECT CHANGE
   -> update CLAUDE.md
   -> update docs/product-decisions.md when the change is a durable decision
   -> update docs/projects/<KEY>/ when the change is project knowledge
+  -> update README.md when the change alters what a newcomer is told
   -> validate
   -> continue the requested task
 ```
 
-Four surfaces are in scope: **`.claude/skills/**/SKILL.md`**, **`CLAUDE.md`**,
-**`docs/product-decisions.md`**, and **`docs/projects/<KEY>/`**.
+Five surfaces are in scope: **`.claude/skills/**/SKILL.md`**, **`CLAUDE.md`**,
+**`docs/product-decisions.md`**, **`docs/projects/<KEY>/`**, and **`README.md`**.
+
+**`README.md` is a documentation surface like any other.** It is the repository's
+front door — the first thing a newcomer reads — and it drifts precisely because it
+was left off this list while `CLAUDE.md` moved on. When a change alters a
+capability, a command, or the layout a newcomer is shown, the README is updated in
+the same task.
 
 **Route the update to the right layer.** A rule goes to the method layer; a fact
 about one client goes to that project's directory. Putting a project fact in
@@ -914,10 +921,10 @@ about one client goes to that project's directory. Putting a project fact in
 wait to be asked, or leave a known inconsistency behind. **Do not ask permission**
 to perform these updates — they are maintenance.
 
-**A task is NOT complete if** an affected Skill is stale, CLAUDE.md is stale, a
-durable decision is unrecorded, a project profile contradicts what the code does, a
-Skill still names a changed CLI interface, or documentation still points at a moved
-path.
+**A task is NOT complete if** an affected Skill is stale, CLAUDE.md is stale,
+README.md is stale, a durable decision is unrecorded, a project profile contradicts
+what the code does, a Skill still names a changed CLI interface, or documentation
+still points at a moved path.
 
 **Triggers include:** a CLI command added or changed · a new MCP server or tool ·
 an execution or publishing workflow change · a security rule change · an artifact

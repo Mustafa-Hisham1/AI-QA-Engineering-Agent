@@ -1284,11 +1284,18 @@ exists, not a feature checklist.
 
 Documentation sync is **not** an optional or deferred step. Whenever a meaningful
 change lands anywhere in the project, the agent checks — **in the same task** —
-whether it affects any of three surfaces, and updates them immediately:
+whether it affects any of five surfaces, and updates them immediately:
 
 - `.claude/skills/**/SKILL.md`
 - `CLAUDE.md`
 - `docs/product-decisions.md`
+- `docs/projects/<KEY>/`
+- `README.md`
+
+**`README.md` was added as a surface on 2026-10-11.** It had been left off this
+list, and that omission is the direct structural reason it fell behind while
+`CLAUDE.md` moved on: nothing ever required a task to check it. The repository's
+front door is documentation like any other.
 
 ```
 PROJECT CHANGE -> identify affected documentation -> update Skill(s)
@@ -1300,9 +1307,9 @@ PROJECT CHANGE -> identify affected documentation -> update Skill(s)
 wait to be asked, or leave a known inconsistency. **It does not ask permission**
 for these updates.
 
-**A task is not complete** while an affected Skill is stale, `CLAUDE.md` is stale,
-a durable decision is unrecorded, a Skill names a changed CLI interface, or
-documentation points at a moved path.
+**A task is not complete** while an affected Skill is stale, `CLAUDE.md` or
+`README.md` is stale, a durable decision is unrecorded, a Skill names a changed CLI
+interface, or documentation points at a moved path.
 
 **Triggers:** CLI command added or changed · new MCP server/tool · execution or
 publishing workflow change · security rule change · artifact path or directory

@@ -30,8 +30,7 @@ disallowed because its name says dev.
 
 **Every execution artifact records the target host verbatim** alongside the
 environment label, so no later reader can mistake which machine produced a
-result. Recorded in
-`docs/projects/NBO/executions/US-53717/RUN-001/execution-results.md`.
+result.
 
 ## Duplicate-check scope — the case that settled it (2026-08-16)
 
@@ -39,11 +38,10 @@ The **rule** is shared methodology (`docs/product-decisions.md` §5.1): the
 duplicate check is scoped to the User Story that owns the executed Test Cases.
 The NBO case that produced it is recorded here.
 
-Decided when Bug 55482 was created from US 53717. A project-wide search had
-surfaced Bug **43084** *"Missing 'Remember Me' Checkbox in Design and
-Implementation"* — Closed as *Fixed and verified*, under a different parent
-(33633) and area path (`NDCIntegrations\Integration - 2`). The human ruled it
-**out of scope for this workflow**, and the Bug was created under US 53717.
+Decided when Bug 55482 was created. A project-wide search had surfaced an
+unrelated Bug — Closed as *Fixed and verified*, under a different parent and
+area path. The human ruled it **out of scope for this workflow**, and the Bug
+was created under the story that owned the executed Test Case.
 
 ## Disjoint Bug field mapping — the verification run (2026-08-23)
 
@@ -64,8 +62,8 @@ silent migration.
 
 ## Execution scope — Admin Panel only (human decision, 2026-08-13)
 
-Only **Admin Panel** cases are queued for manual execution. The Agent Portal
-cases of US 53717 are published but not scheduled.
+Only **Admin Panel** cases are queued for manual execution. Agent Portal cases
+are not scheduled; no Agent Portal URL is configured.
 
 ## Login flow (STG)
 
@@ -78,6 +76,7 @@ configuration, never from test case definitions.
 
 | Story | Decisions | File |
 |---|---|---|
-| US 53717 — Login | D-01…D-12 | `requirements/US-53717/decisions.md` |
-| US 52860 — City | D-01…D-05 | `requirements/US-52860/decisions.md` |
-| US 52857 — Operating Country | D-01…D-17 | `requirements/US-52857/decisions.md` |
+| US 52857 — Operating Country | D-01…D-19 | `requirements/US-52857/decisions.md` |
+
+Stories removed from scope keep no decision file here — see *Previously
+delivered* in `state.md`.

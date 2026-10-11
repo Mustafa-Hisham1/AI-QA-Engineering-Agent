@@ -133,8 +133,8 @@ docs/projects/<KEY>/automation/<Module>/automation-plan.md
 
 `<Module>` is the Module directory path `automation:scope` printed (spaces become `-`). When the
 active profile declares a **sub-module** (a `| Module | Sub-Module | Feature/Page Contains |`
-table, `docs/product-decisions.md` §7.1.2) it is `<Module>/<Sub-Module>` — e.g. NBO's
-`Company/Operating-Country`. Use the path the command prints; never derive it by hand, and never
+table, `docs/product-decisions.md` §7.1.2) it is `<Module>/<Sub-Module>`, i.e.
+`automation/<KEY>/<Module>/<Sub-Module>/`. Use the path the command prints; never derive it by hand, and never
 edit the CSV's Module to change it. A User Story spanning two Modules updates two plans; one
 Module accumulates cases from many stories.
 
@@ -234,7 +234,7 @@ test(
   `registerSession(page, '<HANDLE>', end)` from `src/automation/sessions.ts` right after it submits
   the login, and ends the previous session (`endOpenSessionsNow`) before another login on the same
   page. `end` uses the **application's logout API** with that session's own token and
-  `allSessions: false` (NBO: `automation/NBO/Authentication/support/session-api.ts`), then confirms
+  `allSessions: false` (e.g. `automation/<KEY>/<Module>/support/session-api.ts`), then confirms
   the old token is rejected. The `endSessions` auto fixture ends whatever is still open at
   teardown; a spec does nothing. **Clearing cookies or storage is not a logout** — the server
   (Redis) keeps the session; abandoned sessions hit STG's 15-session cap on 2026-10-10. Never log a

@@ -58,9 +58,8 @@ verbatim, because they can legitimately disagree.
 
 | Module | Feature / Page | Story |
 |---|---|---|
-| Authentication | Login - Admin Panel | US 53717 |
-| Authentication | Login - Agent Portal | US 53717 |
-| City | Add City, Edit City, City List, City Details, City Status, City Approval | US 52860 |
+| Authentication | Login - Admin Panel | shared - login used by every module |
+| Authentication | Login - Agent Portal | shared - login used by every module |
 | Company | Operating Country List, Add Operating Country, Edit Operating Country, Operating Country Approval, Operating Country Status, Operating Country Access (all under `/admin/company/operating-country`) | US 52857 |
 
 ### Module hierarchy for automation
@@ -95,39 +94,17 @@ product failure.
 Credentials never appear in this file, in a test case, in an execution artifact,
 or in a bug (invariant 7). Only handle **names** are listed.
 
-### Authentication (US 53717)
+### Authentication
 
-| Handle | Purpose | Configured in STG |
-|---|---|---|
-| `ADMIN_VALID` | Valid Admin Panel account | **Yes** |
-| `ADMIN_LOCKOUT` | Account for lockout scenarios | **No — not yet configured** |
-| `ADMIN_DISABLED` | Disabled account | **No — not yet configured** |
-| `ADMIN_LEGACY_EMAIL` | Legacy email-format account | Unconfirmed |
-| `ADMIN_UNLOCKER` | Account able to unlock another | Unconfirmed |
-| `AGENT_VALID` | Valid Agent Portal account | Unconfirmed |
-| `AGENT_LOCKOUT` | Agent lockout account | Unconfirmed |
-| `AGENT_DISABLED` | Disabled agent account | Unconfirmed |
-| `AGENT_EXPIRED` | Expired agent account | Unconfirmed |
-| `AGENT_DISABLED_EXPIRED` | Disabled **and** expired agent account | Unconfirmed |
-| `AGENT_OTP` | Agent OTP scenario data | Unconfirmed |
-| `AGENCY_CODE_VALID` | Valid agency code | Unconfirmed |
-| `AGENCY_CODE_WRONG` | Incorrect agency code | Unconfirmed |
-| `CAPTCHA_STATUS` | Whether CAPTCHA is enabled | Unconfirmed |
+The Authentication module is shared: every automated spec logs in through
+`automation/NBO/Authentication/pages/LoginPage.ts`, and
+`automation/NBO/Authentication/support/session-api.ts` implements the logout API
+used by the session-cleanup fixture.
 
-### City / Geo Master (US 52860)
-
-| Handle | Purpose | Configured in STG |
-|---|---|---|
-| `CITY_EXISTING` | An existing City record | **No — unconfirmed** |
-| `CITY_LIST_10PLUS` | A list with more than ten Cities | **No — unconfirmed** |
-| `CITY_USER_MAKER` | User with maker authority | **No — unconfirmed** |
-| `CITY_USER_APPROVER` | User with approver authority | **No — unconfirmed** |
-| `COUNTRY_A`, `COUNTRY_B` | Countries used as parent data | **No — unconfirmed** |
-| `STATE_A1`, `STATE_A2`, `STATE_B1` | States used as parent data | **No — unconfirmed** |
-| `STATE_INACTIVE` | An inactive State | **No — unconfirmed** |
-
-**None of US 52860's test-data prerequisites is confirmed in STG.** Cases needing
-them are `BLOCKED` / `TEST_DATA_ISSUE` until a human configures them.
+Its former login-scenario handles were declared for US 53717, whose artifacts
+have been removed from the repository. **None of them is referenced by any
+automation file or by `test-cases/US-52857/test-cases.csv`**, so none is listed
+here. A future login story declares the handles it needs.
 
 ### Company / Operating Country (US 52857)
 
@@ -169,9 +146,10 @@ defined there.
 
 **Automation state:** US 52857 has all 51 cases in scope (Need Automation `Yes`,
 `Approved`); its plan is `docs/projects/NBO/automation/Company/Operating-Country/automation-plan.md`
-(approved 2026-10-10; code for all 51 cases in `automation/NBO/Company/Operating-Country/`). US 53717 and US 52860 have no `Need Automation` values yet.
-`.env` holds `APP_ENV=STG`, the Admin Panel URL and every US 52857 handle; no
-US 53717 / US 52860 handle value is configured. See `state.md`.
+(approved 2026-10-10; code for all 51 cases in `automation/NBO/Company/Operating-Country/`).
+All 51 passed on STG in RUN-040 (commit 75ec5dd), after six automation defects were fixed.
+`.env` holds `APP_ENV=STG`, the Admin Panel URL and every US 52857 handle. No other
+story has automation in this repository. See `state.md`.
 
 ## Terminology
 

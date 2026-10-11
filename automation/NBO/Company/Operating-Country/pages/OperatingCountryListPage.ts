@@ -9,6 +9,15 @@ import type { Locator, Page } from '@playwright/test';
 
 export type StatusFilter = 'Active' | 'Inactive' | 'Both';
 
+/** A query-string value of `url`, matched case-insensitively on the parameter name. */
+function searchParam(url: string, parameter: string): string | null {
+  const wanted = parameter.toLowerCase();
+  for (const [key, value] of new URLSearchParams(new URL(url).search)) {
+    if (key.toLowerCase() === wanted) return value;
+  }
+  return null;
+}
+
 export const LIST_COLUMNS = ['Name', 'Country', 'Currency', 'Approval Status', 'Status', 'Actions'] as const;
 export type ListColumn = (typeof LIST_COLUMNS)[number];
 
@@ -105,10 +114,76 @@ export class OperatingCountryListPage {
     if (filters.status) await this.statusOption(filters.status).click();
     if (filters.country) await this.chooseCountry(filters.country);
     if (filters.name !== undefined) await this.nameFilter.fill(filters.name);
-    const answered = this.page.waitForResponse((response) => /operatingcountr/i.test(response.url()) && response.request().method() === 'GET');
-    await this.searchButton.click();
-    await answered;
-    await this.waitUntilLoaded();
+
+    // Wait for the SEARCH response, not merely for "a list GET": the list's own
+    // initial load matches that loosely and may still be in flight, and
+    // awaiting it returned the UNFILTERED page-1 rows (RUN-018, TC-52857-045
+    // read "aut opc ctpvwzga" for a "GYP" search; TC-52857-049 saw rows where
+    // it expected the no-results message). Proven 2026-10-11 by capturing the
+    // matched URL: `...&Status=1&isPaginated=true` with no `Name=`.
+    //
+    // The predicate is also matched case-insensitively on the parameter name,
+    // and a search whose response never arrives (the app can answer an
+    // identical query from its cache) must not fail the step: the row-level
+    // settle below is what the assertions actually depend on.
+    const name = filters.name;
+    // The table occasionally keeps the PREVIOUS result set on screen even after
+    // the new response arrived (RUN-033/RUN-035, TC-52857-045: "AUT Opc …" rows
+    // for a "GYP" search, still stale 30 s later, while the same search answered
+    // correctly on its own). Clicking Search again always resolved it, so the
+    // search is re-submitted once before the wait is allowed to fail — a
+    // re-query of the same filters, never a weakened expectation.
+    for (let attempt = 0; ; attempt++) {
+      const answered = this.page
+        .waitForResponse(
+          (response) =>
+            /operatingcountr/i.test(response.url()) &&
+            response.request().method() === 'GET' &&
+            (name === undefined || name === '' || searchParam(response.url(), 'Name') === name),
+          { timeout: 30_000 },
+        )
+        // A repeated identical query can be answered from the app's cache with
+        // no request at all; the row-level settle below is the real check.
+        .catch(() => undefined);
+      await this.searchButton.click();
+      await answered;
+      await this.waitUntilLoaded();
+      if (name === undefined || name === '') return;
+      try {
+        await this.waitUntilRowsMatch(name, attempt === 0 ? 8_000 : 20_000);
+        return;
+      } catch (error) {
+        if (attempt >= 1) throw error;
+      }
+    }
+  }
+
+  /**
+   * Settles until every listed Name contains `term` (case-insensitively), or
+   * the list shows its no-results state. Guards against reading the previous
+   * search's rows while the new ones are still rendering.
+   *
+   * An action, never an assertion (Page Objects carry none). It does NOT judge
+   * the result: a row set that stays stale past the deadline is a failure of
+   * this wait, not of the application, so it raises a plain Error naming what
+   * is still on screen. Returning quietly instead would hand the spec the
+   * PREVIOUS search's rows and report a product defect that does not exist
+   * (RUN-033, TC-52857-045 read "aut opc ygiucpxd" for a "GYP" search).
+   */
+  async waitUntilRowsMatch(term: string, timeoutMs = 15_000): Promise<void> {
+    const wanted = term.toLowerCase();
+    const deadline = Date.now() + timeoutMs;
+    let names: string[] = [];
+    while (Date.now() < deadline) {
+      if (await this.noResults.first().isVisible().catch(() => false)) return;
+      names = await this.columnValues('Name');
+      if (names.length > 0 && names.every((value) => value.toLowerCase().includes(wanted))) return;
+      await this.page.waitForTimeout(100);
+    }
+    throw new Error(
+      `The list still showed rows that do not match the search "${term}" after ${Math.round(timeoutMs / 1000)} s: ${JSON.stringify(names.slice(0, 5))}. ` +
+        'The search response had already arrived, so this is the table not having re-rendered — not a search defect.',
+    );
   }
 
   /**

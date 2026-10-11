@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
 
 import { REPORT_ROOT } from '../automation/artifact-policy.ts';
 import type { ExecutionReport } from '../automation/reporting/model.ts';
-import { RESULTS_FILE, latestRunId, writeRenderedReport } from '../automation/reporting/writer.ts';
+import { RESULTS_FILE, latestRunId, moduleDirsOf, writeModuleReport, writeRenderedReport } from '../automation/reporting/writer.ts';
 import { ProjectError, describeActiveProject, resolveActiveProject } from '../projects/active-project.ts';
 
 function parseArgs(argv: readonly string[]): { project: string | null; run: string | null } {
@@ -52,11 +52,23 @@ function main(): number {
   }
 
   const report = JSON.parse(readFileSync(resultsPath, 'utf8')) as ExecutionReport;
-  const htmlPath = writeRenderedReport(`${projectRoot}/${runId}`, report);
+  const runDir = `${projectRoot}/${runId}`;
+  const htmlPath = writeRenderedReport(runDir, report);
+
+  // The Module report is the copy a reader opens from the automation tree, so
+  // it is re-rendered from the SAME stored results — never left pointing at an
+  // older run. It matters because it holds only the latest run: a narrowed run
+  // (`--grep`) legitimately overwrites it with that run's cases alone, and this
+  // is how a full run's report is restored without re-executing anything.
+  const moduleReports = moduleDirsOf(
+    project.key,
+    report.results.map((result) => result.specFile),
+  ).map((dir) => writeModuleReport(dir, runDir, report));
 
   const { totals } = report;
   console.log(`Run ${runId}: ${totals.total} Test Cases — ${totals.pass} passed, ${totals.fail} failed, ${totals.notRun} not run, ${totals.notAutomated} not automated; ${report.bugCandidates.length} Bug Candidate(s).`);
   console.log(`Report: ${htmlPath}`);
+  for (const path of moduleReports) console.log(`Module report: ${path.replaceAll('\\', '/')}`);
   console.log(`Open:   ${pathToFileURL(resolve(htmlPath)).href}`);
   return 0;
 }

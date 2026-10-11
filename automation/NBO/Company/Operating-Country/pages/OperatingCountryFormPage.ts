@@ -103,13 +103,8 @@ export class OperatingCountryFormPage {
       await field.selectOption({ label: option });
       return;
     }
-    // A custom select (PrimeNG): a click made while the form initialises is
-    // swallowed and the list never opens (RUN-008, TC-52857-024) — reopen until expanded.
-    for (let attempt = 0; attempt < 3 && (await field.getAttribute('aria-expanded')) !== 'true'; attempt++) {
-      await field.click();
-      await this.page.waitForTimeout(300); // the overlay animates open with no event to wait on
-    }
-    await field.pressSequentially(option);
+    await openDropdown(this.page, field);
+    await filterDropdown(this.page, field, option);
     const wanted = this.page.getByRole('option', { name: option, exact: true });
     try {
       await wanted.first().waitFor({ timeout: 10_000 });
@@ -118,7 +113,19 @@ export class OperatingCountryFormPage {
       const tag = await field.evaluate((element) => `${element.tagName} role=${element.getAttribute('role') ?? ''} expanded=${element.getAttribute('aria-expanded') ?? ''}`);
       throw new Error(`Option "${option}" was not offered by ${tag}. Options present: ${JSON.stringify(offered)}`);
     }
-    await wanted.first().click();
+    // A virtual-scrolling list re-renders its window while it settles, which
+    // detaches the option mid-click (RUN-018, TC-52857-025: "element was
+    // detached from the DOM, retrying" until the test timed out). Retry the
+    // click on the re-resolved option rather than waiting on a stale handle.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await wanted.first().click({ timeout: 10_000 });
+        return;
+      } catch (error) {
+        if (attempt >= 4) throw error;
+        await wanted.first().waitFor({ timeout: 10_000 });
+      }
+    }
   }
 
   /** Whether a dropdown offers an option, by its exact label. */
@@ -152,15 +159,64 @@ export class OperatingCountryFormPage {
 }
 
 /**
+ * The filter box PrimeNG renders *inside* an opened select overlay.
+ *
+ * Not every dropdown of this module has one, and that difference is what
+ * RUN-018 tripped over (TC-52857-019/-020/-025/-050). Observed on STG
+ * 2026-10-11: the Add form's **Country** list has no filter box and renders
+ * every option, while the Add form's **Currency** list and the list page's
+ * **Country** filter each have one and render only a ~12-row virtual window.
+ * Typing on the combobox never reaches that box, so the window stays
+ * unfiltered and an option that exists looks "not offered".
+ */
+function overlayFilter(page: Page): Locator {
+  return page.locator('.p-select-overlay input, .p-dropdown-panel input, [role=listbox] input').first();
+}
+
+/** Opens a custom select, reopening while a click lands before the form is live. */
+async function openDropdown(page: Page, field: Locator): Promise<void> {
+  // A click made while the form initialises is swallowed and the list never
+  // opens (RUN-008, TC-52857-024) — reopen until expanded.
+  for (let attempt = 0; attempt < 3 && (await field.getAttribute('aria-expanded')) !== 'true'; attempt++) {
+    await field.click();
+    await page.waitForTimeout(300); // the overlay animates open with no event to wait on
+  }
+}
+
+/**
+ * Narrows an opened select to `term`: into the overlay's filter box when it has
+ * one, else by typing on the combobox itself. Settles on the option list having
+ * reacted, so a virtualised list is never read while it still shows the
+ * unfiltered window.
+ */
+async function filterDropdown(page: Page, field: Locator, term: string): Promise<void> {
+  const filter = overlayFilter(page);
+  if (await filter.isVisible().catch(() => false)) {
+    await filter.fill(term);
+  } else {
+    await field.pressSequentially(term);
+  }
+  // The list re-renders asynchronously with no event of its own; settle on it
+  // no longer changing rather than on a fixed delay.
+  let previous = '';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const current = (await page.getByRole('option').allTextContents()).join('|');
+    if (current === previous) return;
+    previous = current;
+    await page.waitForTimeout(100);
+  }
+}
+
+/**
  * Whether a dropdown offers `option`. A native `<select>` is read directly; a
- * custom one is opened, filtered by typing, read, and closed again.
+ * custom one is opened, filtered, read, and closed again.
  */
 export async function offersOption(page: Page, field: Locator, option: string): Promise<boolean> {
   if ((await field.evaluate((element) => element.tagName)) === 'SELECT') {
     return (await field.getByRole('option', { name: option, exact: true }).count()) > 0;
   }
-  await field.click();
-  await field.pressSequentially(option);
+  await openDropdown(page, field);
+  await filterDropdown(page, field, option);
   const offered = await page
     .getByRole('option', { name: option, exact: true })
     .first()

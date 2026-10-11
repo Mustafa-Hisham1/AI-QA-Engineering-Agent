@@ -550,7 +550,14 @@ roots, and each writer refuses a directory holding the other's report.
 `automation:test` prints `Execution report: <path>` (and `Module report: <path>` per
 Module) at the end of every run that executed at least one test. `automation:report` finds the latest (or a named)
 run's report and re-renders the HTML and Bug Candidates from its stored,
-already-sanitised `execution-results.json`; it never re-runs a test.
+already-sanitised `execution-results.json`; it never re-runs a test. **It
+re-renders the Module report too**, from those same stored results — the
+Module copy holds only the **latest** run, so a narrowed run (`--grep`,
+a single Test Case) legitimately leaves it holding just that run's cases, and
+`automation:report -- --project <KEY> --run RUN-<NNN>` is how the full run's
+Module report is restored without executing anything. A Module report that must
+show every case of a Module therefore comes from a full run — or from
+re-rendering one.
 
 `story:read` verifies the work item type, converts HTML fields to Markdown,
 lists attachments, downloads Markdown attachments, and returns a **Requirement

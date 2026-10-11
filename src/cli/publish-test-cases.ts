@@ -4,9 +4,9 @@
  * Azure DevOps as child work items of their User Story. What is published is the
  * CSV as it stands now, human edits included; the Markdown rendering is never read.
  *
- *   node src/cli/publish-test-cases.ts 53717             # DRY RUN — writes nothing
- *   node src/cli/publish-test-cases.ts 53717 --confirm   # performs the writes
- *   node src/cli/publish-test-cases.ts 53717 --verify    # verify only, no writes
+ *   node src/cli/publish-test-cases.ts 52857             # DRY RUN — writes nothing
+ *   node src/cli/publish-test-cases.ts 52857 --confirm   # performs the writes
+ *   node src/cli/publish-test-cases.ts 52857 --verify    # verify only, no writes
  *
  * SAFETY MODEL
  * ------------
@@ -81,7 +81,7 @@ function printUsage(): void {
   log();
   log('Usage: node src/cli/publish-test-cases.ts <user-story-id> [--project <KEY>] [--confirm] [--verify] [--limit <n>]');
   log();
-  log('  <user-story-id>   User Story whose approved Test Cases are published, e.g. 53717');
+  log('  <user-story-id>   User Story whose approved Test Cases are published, e.g. 52857');
   log('  --project <KEY>   Active project: a directory name under docs/projects.');
   log('                    Required when more than one project profile exists.');
   log('  (no flag)         DRY RUN — shows the exact operations and writes nothing');

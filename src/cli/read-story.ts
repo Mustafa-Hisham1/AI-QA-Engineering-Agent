@@ -1,10 +1,10 @@
 /**
  * Reads one Azure DevOps User Story and prints its Requirement Context.
  *
- *   node src/cli/read-story.ts 53717
- *   node src/cli/read-story.ts 53717 --summary   # metadata only, no body text
- *   node src/cli/read-story.ts 53717 --json      # machine-readable
- *   node src/cli/read-story.ts 53717 --save-source <dir>
+ *   node src/cli/read-story.ts 52857
+ *   node src/cli/read-story.ts 52857 --summary   # metadata only, no body text
+ *   node src/cli/read-story.ts 52857 --json      # machine-readable
+ *   node src/cli/read-story.ts 52857 --save-source <dir>
  *
  * Read-only with respect to Azure DevOps: it fetches the work item, its
  * attachment list, and the content of Markdown attachments. Requirement
@@ -61,7 +61,7 @@ function printUsage(): void {
   log();
   log('Usage: node src/cli/read-story.ts <user-story-id> [--summary] [--json] [--save-source <dir>]');
   log();
-  log('  <user-story-id>      Azure DevOps work item ID of a User Story, e.g. 53717');
+  log('  <user-story-id>      Azure DevOps work item ID of a User Story, e.g. 52857');
   log('  --summary            Print metadata and attachment list only');
   log('  --json               Print the Requirement Context as JSON');
   log('  --save-source <dir>  Write the Markdown attachments verbatim into <dir>');

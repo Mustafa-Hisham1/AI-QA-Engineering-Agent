@@ -223,7 +223,7 @@ export class AdoReadClient {
   async readUserStory(id: number): Promise<RequirementContext> {
     if (!Number.isInteger(id) || id <= 0) {
       throw new AdoError('CONFIG_INVALID', `"${id}" is not a valid work item ID.`, {
-        hint: 'Pass a positive whole number, e.g. 53717.',
+        hint: 'Pass a positive whole number, e.g. 52857.',
       });
     }
 
@@ -260,7 +260,7 @@ export class AdoReadClient {
   async readParentContext(id: number): Promise<ParentContext> {
     if (!Number.isInteger(id) || id <= 0) {
       throw new AdoError('CONFIG_INVALID', `"${id}" is not a valid work item ID.`, {
-        hint: 'Pass a positive whole number, e.g. 53717.',
+        hint: 'Pass a positive whole number, e.g. 52857.',
       });
     }
 

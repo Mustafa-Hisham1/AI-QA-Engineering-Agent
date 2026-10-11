@@ -60,7 +60,7 @@ export function isNeedAutomation(value: string): value is NeedAutomation {
 
 /** One Test Case, exactly as the local artifact defines it. */
 export interface TestCaseRecord {
-  /** Stable internal ID, e.g. `TC-53717-001`. Assigned before any external ID. */
+  /** Stable internal ID, e.g. `TC-52857-001`. Assigned before any external ID. */
   readonly localId: string;
   /** The short scenario line after the ID in the case heading. Local only. */
   readonly summary: string;

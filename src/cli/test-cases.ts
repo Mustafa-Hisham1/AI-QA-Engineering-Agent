@@ -1,16 +1,16 @@
 /**
  * Works with a story's Test Case files. Local files only — never Azure DevOps.
  *
- *   node src/cli/test-cases.ts render  53717 [--project <KEY>]
+ *   node src/cli/test-cases.ts render  52857 [--project <KEY>]
  *       Re-render test-cases.md from test-cases.csv. Writes the Markdown only;
  *       the CSV is never written.
  *
- *   node src/cli/test-cases.ts migrate 53717 [--project <KEY>]
+ *   node src/cli/test-cases.ts migrate 52857 [--project <KEY>]
  *       One-time conversion of a legacy Markdown-only artifact: writes
  *       test-cases.csv and re-renders test-cases.md from it. Refuses when a CSV
  *       already exists, and writes nothing unless every case round-trips exactly.
  *
- *   node src/cli/test-cases.ts show    53717 [TC-ID …] [--project <KEY>] [--json]
+ *   node src/cli/test-cases.ts show    52857 [TC-ID …] [--project <KEY>] [--json]
  *       Prints cases from the CSV — the current, human-reviewed content — for
  *       workflows that execute or automate them. Writes nothing.
  *

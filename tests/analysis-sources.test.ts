@@ -27,7 +27,7 @@ import { computeContentFingerprint, type UserStory } from '../src/ado/user-story
 import { resolveActiveProject, type ActiveProject } from '../src/projects/active-project.ts';
 
 const fixture = (name: string): string => fileURLToPath(new URL(`./fixtures/api/${name}`, import.meta.url));
-const REAL_ANALYSIS = fileURLToPath(new URL('../docs/projects/NBO/requirements/US-53717/requirement-analysis.md', import.meta.url));
+const LEGACY_ANALYSIS = fileURLToPath(new URL('./fixtures/legacy-analysis.md', import.meta.url));
 
 function demoProject(allowed = 'STG'): ActiveProject {
   const root = mkdtempSync(join(tmpdir(), 'qa-analysis-'));
@@ -196,9 +196,9 @@ test('11. the story fingerprint is unchanged: same golden value, still blind to 
 });
 
 test('11b. an existing analysis written before API/UI provenance still parses, and its fingerprint still compares', () => {
-  const recorded = parseRecordedSources(readFileSync(REAL_ANALYSIS, 'utf8'));
+  const recorded = parseRecordedSources(readFileSync(LEGACY_ANALYSIS, 'utf8'));
 
-  strictEqual(recorded.storyFingerprint, '334a9561b7cb81fbaf6e6f2c9975044bcd3c702f838008052a67cb4c948d78d0');
+  strictEqual(recorded.storyFingerprint, '1'.repeat(64));
   strictEqual(recorded.api, null, 'no API row yet: treated as Not provided');
   deepStrictEqual(findSourceChanges(recorded, { storyFingerprint: recorded.storyFingerprint, api: NO_API }), []);
   deepStrictEqual(findSourceChanges(recorded, { storyFingerprint: '0'.repeat(64), api: NO_API }).map((c) => [c.source, c.refresh]), [['User Story', true]]);

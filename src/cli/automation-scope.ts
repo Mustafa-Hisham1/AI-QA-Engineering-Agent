@@ -2,7 +2,7 @@
  * Shows which Test Cases of a User Story are in automation scope, grouped by
  * Module, with the plan and spec path each one maps to. Reads local files only.
  *
- *   node src/cli/automation-scope.ts 53717 --project NBO
+ *   node src/cli/automation-scope.ts 52857 --project NBO
  *
  * In scope = Need Automation = Yes AND Approved/Published
  * (`docs/product-decisions.md` §7.1). Every other case is listed with its

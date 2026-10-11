@@ -146,7 +146,7 @@ export function buildRecord(raw: RawCase, storyId: number): TestCaseRecord {
   const idMatch = LOCAL_ID.exec(localId);
   if (!idMatch) {
     throw new ArtifactError(`"${localId}" is not a valid Test Case ID.`, [
-      'Test Case IDs are TC-<storyId>-NNN, at least three digits, e.g. TC-53717-001.',
+      'Test Case IDs are TC-<storyId>-NNN, at least three digits, e.g. TC-52857-001.',
     ]);
   }
   if (Number(idMatch[1]) !== storyId) {

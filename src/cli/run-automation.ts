@@ -2,7 +2,7 @@
  * Runs or lists the active project's Playwright automation.
  *
  *   node src/cli/run-automation.ts --project NBO --list               # discovery only
- *   node src/cli/run-automation.ts --project NBO --grep @TC-53717-006 # run one case
+ *   node src/cli/run-automation.ts --project NBO --grep @TC-52857-001 # run one case
  *
  * Resolves the active project the same way as every other command, then starts
  * the pinned Playwright runner with that project pinned. Every argument other

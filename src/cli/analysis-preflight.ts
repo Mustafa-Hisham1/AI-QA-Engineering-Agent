@@ -3,9 +3,9 @@
  * can use — and what changed since the last analysis. Read-only: it never
  * writes a file, never touches Azure DevOps, never starts a browser.
  *
- *   node src/cli/analysis-preflight.ts 53717 --project NBO
- *   node src/cli/analysis-preflight.ts 53717 --project NBO --api specs/auth.json --ui --ui-account ADMIN_VALID
- *   node src/cli/analysis-preflight.ts 53717 --project NBO --fingerprint <sha256 from story:read>
+ *   node src/cli/analysis-preflight.ts 52857 --project NBO
+ *   node src/cli/analysis-preflight.ts 52857 --project NBO --api specs/auth.json --ui --ui-account ADMIN_ALL
+ *   node src/cli/analysis-preflight.ts 52857 --project NBO --fingerprint <sha256 from story:read>
  *
  * Prints:
  * - the API source status (type, path, sha256, operation count — or why unusable);

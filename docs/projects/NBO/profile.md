@@ -59,7 +59,7 @@ verbatim, because they can legitimately disagree.
 | Module | Feature / Page | Story |
 |---|---|---|
 | Authentication | Login - Admin Panel | shared - login used by every module |
-| Authentication | Login - Agent Portal | shared - login used by every module |
+| Authentication | Login - Agent Portal | **Not currently in scope** — no story covers it and no Agent Portal URL is configured |
 | Company | Operating Country List, Add Operating Country, Edit Operating Country, Operating Country Approval, Operating Country Status, Operating Country Access (all under `/admin/company/operating-country`) | US 52857 |
 
 ### Module hierarchy for automation
@@ -157,8 +157,7 @@ story has automation in this repository. See `state.md`.
 |---|---|
 | Admin Panel | The internal administration web application |
 | Agent Portal | The agent-facing web application |
-| Geo Master | The City / Region / State reference-data module |
-| Maker / Approver | The two-person authority model used by City workflows |
+| Maker / Approver | The two-person authority model: a Maker submits a record for approval, an Approver approves or rejects it. Used by the Operating Country workflows (`OPERATING_COUNTRIES_MAKER` / `OPERATING_COUNTRIES_APPROVER`) |
 
 ## Artifacts
 

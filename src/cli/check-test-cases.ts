@@ -2,8 +2,8 @@
  * Checks a story's Test Case set. Local files only — it never reads or writes
  * Azure DevOps, and it never writes the CSV.
  *
- *   node src/cli/check-test-cases.ts 53717 --snapshot   # BEFORE revising the CSV
- *   node src/cli/check-test-cases.ts 53717              # AFTER revising and rendering
+ *   node src/cli/check-test-cases.ts 52857 --snapshot   # BEFORE revising the CSV
+ *   node src/cli/check-test-cases.ts 52857              # AFTER revising and rendering
  *
  * The CSV is the source of truth (`docs/product-decisions.md` §6.4). The check:
  *
@@ -61,7 +61,7 @@ function printUsage(): void {
   console.log();
   console.log('Usage: node src/cli/check-test-cases.ts <user-story-id> [--project <KEY>] [--snapshot]');
   console.log();
-  console.log('  <user-story-id>   User Story whose Test Case set is checked, e.g. 53717');
+  console.log('  <user-story-id>   User Story whose Test Case set is checked, e.g. 52857');
   console.log('  --project <KEY>   Active project: a directory name under docs/projects.');
   console.log('                    Required when more than one project profile exists.');
   console.log('  --snapshot        Save the current CSV before revising it');
